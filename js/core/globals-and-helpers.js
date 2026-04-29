@@ -8,6 +8,13 @@ window.globalZIndex = 100;
 window.THEME_CLRS = ['#00E5FF', '#99CC33', '#F78E1E', '#FF0033', '#B266FF', '#E2E2E2'];
 window.clamp = (v, min, max) => Math.max(min, Math.min(max, v));
 window.lerp = (a,b,t) => a + (b-a)*t;
+window.smartSpawnPos = (cam, w, h) => {
+    console.warn("LEGACY: window.smartSpawnPos was called. Routing to window.SpawnManager.getSpawnPosition.");
+    if (window.SpawnManager && window.SpawnManager.getSpawnPosition) {
+        return window.SpawnManager.getSpawnPosition(cam, w, h);
+    }
+    return { x: 100, y: 100 };
+};
 
 // ── RESOLUTION MANAGEMENT ───────────────────────────────────────────────────
 

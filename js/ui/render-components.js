@@ -44,7 +44,7 @@ const WavetablePanelDisplay = ({ mod, color, updateParam }) => {
         let animationId;
         const draw = () => {
             animationId = requestAnimationFrame(draw);
-            if (!mod.currentTopo) return;
+            if (!mod || !mod.currentTopo || !mod.params) return;
             ctx.clearRect(0, 0, w, h);
             
             if (window.optorackWebGLCanvas) {
@@ -67,17 +67,21 @@ const WavetablePanelDisplay = ({ mod, color, updateParam }) => {
             const warpFactor = Math.pow(2, warpAmt * 3);
             const fov = 250; const stepX = (w * 0.8) / resX; const stepZ = (h * 0.8) / resZ;
             
+            const dw = window.DW || 160;
+            const dh = window.DH || 120;
+            
             ctx.save(); ctx.translate(w/2, h/2 + 20); 
             
             for(let z = resZ - 1; z >= 0; z--) {
                 for(let x = 0; x < resX; x++) {
                     let phaseX = (x / resX * syncAmt * timeScl) % 1.0;
                     let warpedPhaseX = Math.pow(phaseX, warpFactor);
-                    const mapX = Math.floor(warpedPhaseX * (window.DW - 1));
+                    const mapX = Math.floor(warpedPhaseX * (dw - 1));
                     let read_y_norm = (z / resZ * formantAmt * freqScl) % 1.0;
-                    const mapY = Math.floor(read_y_norm * (window.DH - 1));
+                    const mapY = Math.floor(read_y_norm * (dh - 1));
                     
-                    let val = mod.currentTopo[(window.DH - 1 - mapY) * window.DW + mapX] * sens * ampScl;
+                    const idx = (dh - 1 - mapY) * dw + mapX;
+                    let val = (mod.currentTopo[idx] || 0) * sens * ampScl;
                     if (val > 0.02) { 
                         const x3d = (x - resX/2) * stepX; const z3d = (z - resZ/2) * stepZ; const y3d = -Math.min(val * 100, 150); 
                         const scale3D = fov / Math.max(10, z3d + fov);

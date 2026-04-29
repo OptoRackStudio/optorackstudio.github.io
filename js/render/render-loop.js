@@ -197,7 +197,10 @@ window.OptoRackRenderLoop = class {
             dspObj.triggerFlag = false;
         }
 
-        if ((shouldTrigger || dspObj.params.isLive) && dspObj.currentTopo) {
+        if (!dspObj.state) dspObj.state = { lastTrig: 0, gate: 0, smoothWtPos: dspObj.scanPhase || 0 };
+        const state = dspObj.state;
+
+        if ((shouldTrigger || dspObj.params.isLive || state.gate > 0) && dspObj.currentTopo) {
             if (shouldTrigger) {
                 const { atk, dec, sus, rel, hold = 0 } = dspObj.params;
                 const gateLength = (beatInterval / (isExtTrig ? 4 : internalRate)) * 0.85;
@@ -207,14 +210,24 @@ window.OptoRackRenderLoop = class {
 
                 paramsToUpdate.forEach(param => {
                     param.cancelScheduledValues(ctActx);
-                    param.setValueAtTime(0.0001, ctActx);
-                    param.linearRampToValueAtTime(1.0, ctActx + Math.max(0.002, atk));
-                    if (hold > 0) param.setValueAtTime(1.0, ctActx + atk + hold);
-                    param.exponentialRampToValueAtTime(Math.max(sus, 0.0001), ctActx + atk + hold + Math.max(0.002, dec));
-                    param.setValueAtTime(Math.max(sus, 0.0001), ctActx + gateLength - Math.max(0.002, rel));
-                    param.exponentialRampToValueAtTime(0.0001, ctActx + gateLength + Math.max(0.002, rel));
+                    param.setValueAtTime(param.value || 0.0001, ctActx);
+                    
+                    const tAtk = ctActx + Math.max(0.002, atk);
+                    const tHold = tAtk + hold;
+                    const tDec = tHold + Math.max(0.002, dec);
+                    const tSus = Math.max(ctActx + gateLength - Math.max(0.002, rel), tDec + 0.002);
+                    const tRel = tSus + Math.max(0.002, rel);
+
+                    param.linearRampToValueAtTime(1.0, tAtk);
+                    if (hold > 0) param.setValueAtTime(1.0, tHold);
+                    param.exponentialRampToValueAtTime(Math.max(sus, 0.0001), tDec);
+                    param.setValueAtTime(Math.max(sus, 0.0001), tSus);
+                    param.exponentialRampToValueAtTime(0.0001, tRel);
                 });
-                dspObj.state.lastTrig = performance.now();
+                state.lastTrig = performance.now();
+                state.gate = 1.0;
+                // Auto-clear gate after full ADSR duration for visual/DSP gating
+                setTimeout(() => { state.gate = 0; }, (atk + hold + dec + rel + 0.1) * 1000);
             }
 
             const maxH = 64;
@@ -223,6 +236,11 @@ window.OptoRackRenderLoop = class {
             const bendAmt = dspObj.params.bend || 0;
             const symAmt = dspObj.params.sym || 0;
             let phaseX = dspObj.scanPhase;
+
+            // Real-time parameter interpolation support
+            if (!state.smoothWtPos) state.smoothWtPos = dspObj.scanPhase;
+            state.smoothWtPos = lerp(state.smoothWtPos, dspObj.scanPhase, 0.2);
+            phaseX = state.smoothWtPos;
 
             if (symAmt !== 0) {
                 let symPhase = phaseX < 0.5 ? phaseX * 2 : (1 - phaseX) * 2;
@@ -250,10 +268,17 @@ window.OptoRackRenderLoop = class {
                 real[i] = amp * Math.cos(phase); imag[i] = amp * Math.sin(phase);
             }
 
-            try {
-                const wave = this.config.cDsp.current.actx.createPeriodicWave(real, imag, { disableNormalization: false });
-                dspObj.unisonOscs?.forEach(osc => osc.setPeriodicWave(wave));
-            } catch (e) { }
+            // Throttle Wavetable Update to ~30fps to prevent main-thread congestion
+            const now = performance.now();
+            if (!dspObj._lastWaveTime || now - dspObj._lastWaveTime > 32) {
+                try {
+                    const wave = this.config.cDsp.current.actx.createPeriodicWave(real, imag, { disableNormalization: false });
+                    dspObj.unisonOscs?.forEach(osc => osc.setPeriodicWave(wave));
+                    dspObj._lastWaveTime = now;
+                } catch (e) { 
+                    console.warn("Wavetable generation failed", e);
+                }
+            }
         }
     }
 
@@ -337,26 +362,45 @@ window.OptoRackRenderLoop = class {
             }
             ctx.lineTo(c._physics[segments - 1].x, c._physics[segments - 1].y);
 
-            ctx.shadowBlur = 12 * cam.z;
-            ctx.shadowColor = 'rgba(0,0,0,0.4)';
-            ctx.strokeStyle = 'rgba(0,0,0,0.3)';
-            ctx.lineWidth = 6 * cam.z;
+            // Premium Glow & Connector Style
+            ctx.shadowBlur = 15 * cam.z;
+            ctx.shadowColor = 'rgba(0,0,0,0.5)';
+            ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+            ctx.lineWidth = 7 * cam.z;
             ctx.lineCap = 'round';
             ctx.stroke();
 
-            ctx.shadowBlur = 8 * cam.z;
+            // The Core Wire
+            ctx.shadowBlur = 10 * cam.z;
             ctx.shadowColor = c.color;
             ctx.strokeStyle = c.color;
             ctx.lineWidth = 4 * cam.z;
             ctx.stroke();
 
+            // Inner Highlight / Pulse
             ctx.shadowBlur = 0;
-            ctx.strokeStyle = 'rgba(255,255,255,0.4)';
-            ctx.lineWidth = 1.5 * cam.z;
-            ctx.setLineDash([10, 20]);
-            ctx.lineDashOffset = (performance.now() / 50) % 30;
+            ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+            ctx.lineWidth = 1.2 * cam.z;
+            ctx.setLineDash([15, 25]);
+            ctx.lineDashOffset = -(performance.now() / 40) % 40;
             ctx.stroke();
             ctx.setLineDash([]);
+
+            // Draw Plug Connectors
+            [c._physics[0], c._physics[segments - 1]].forEach((p, idx) => {
+                ctx.fillStyle = '#222';
+                ctx.strokeStyle = idx === 0 ? '#666' : '#888';
+                ctx.lineWidth = 1 * cam.z;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 5 * cam.z, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                // Inner pin
+                ctx.fillStyle = c.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 2 * cam.z, 0, Math.PI * 2);
+                ctx.fill();
+            });
         });
 
         const drag = this.config.disruptCursor.current;

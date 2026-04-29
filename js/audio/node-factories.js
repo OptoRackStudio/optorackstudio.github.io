@@ -127,12 +127,29 @@ window.OptoRackAudio = {
             mod.nodes = { dry, wet, splitL, splitM, splitH, cL: compL, cM: compM, cH: compH, gL: gainL, gM: gainM, gH: gainH };
         }
         else if (type === 'UTILITY_IO') {
-            const uIn = actx.createGain(); const uMono = actx.createGain(); const uVol = actx.createGain();
-            const uPan = actx.createStereoPanner(); const uOut = actx.createGain();
-            uIn.connect(uMono); uMono.connect(uVol); uVol.connect(uPan); uPan.connect(uOut);
-            mod.inNodes = { IN: uIn }; mod.outNodes = { OUT: uOut };
-            mod.nodes = { vol: uVol, pan: uPan, mono: uMono };
-            mod.params = overrideParams || { vol: 0.0, pan: 0.0, isMono: false };
+            const uIn = actx.createGain();
+            const uVol = actx.createGain();
+            const uSplit = actx.createChannelSplitter(2);
+            const vcaL = actx.createGain();
+            const vcaR = actx.createGain();
+            const uMerge = actx.createChannelMerger(2);
+            const uOut = actx.createGain();
+
+            uIn.connect(uVol);
+            uVol.connect(uSplit);
+            uSplit.connect(vcaL, 0); // Left to VCA L
+            uSplit.connect(vcaR, 1); // Right to VCA R (if stereo input)
+            // If input is mono, connect Channel 0 to both
+            uSplit.connect(vcaR, 0); 
+
+            vcaL.connect(uMerge, 0, 0);
+            vcaR.connect(uMerge, 0, 1);
+            uMerge.connect(uOut);
+
+            mod.inNodes = { IN: uIn };
+            mod.outNodes = { OUT: uOut };
+            mod.nodes = { vol: uVol, vcaL, vcaR, splitter: uSplit, merger: uMerge };
+            mod.params = overrideParams || { vol: 0.0, pan: 0.5, isMono: false };
         }
 
         mod.baseParams = JSON.parse(JSON.stringify(mod.params));
@@ -151,7 +168,7 @@ window.OptoRackAudio = {
         const oscGain = actx.createGain(); const audioIn = actx.createGain();
         audioIn.connect(unisonMaster); unisonMaster.connect(oscGain); oscGain.connect(preFilterMix);
 
-        const baseFreq = dsp.getBaseFrequency(NOTES[rootNote % 12] || 'C'); 
+        const baseFreq = dsp.getBaseFrequency(window.NOTES[rootNote % 12] || 'C'); 
         const subOsc = actx.createOscillator(); subOsc.type = 'sine'; subOsc.frequency.value = baseFreq / 2; subOsc.start();
         const subGain = actx.createGain(); const subPanner = actx.createStereoPanner();
         const subToFilter = actx.createGain(); const subToOut = actx.createGain(); const fmGain = actx.createGain();
@@ -200,6 +217,7 @@ window.OptoRackAudio = {
             outNodes: { AUDIO: audioOut, ENV: envCVOut, TOPO: topoCVOut, LFO: lfoOut },
             inNodes: { AUDIO: audioIn, FLT: inFlt, PITCH: inPitch, TRIG: inTrig, WT: inWt },
             curTrigT: 0, wavePhase: Math.random() * 100, triggerFlag: false, scanPhase: 0,
+            state: { lastTrig: 0, gate: 0, smoothWtPos: 0 },
             params, baseParams: JSON.parse(JSON.stringify(params))
         };
     }

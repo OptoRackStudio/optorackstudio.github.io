@@ -710,8 +710,15 @@ function App() {
 
         const modId = forceId || `VOICE_${Date.now()}`;
 
-        // Use the new Audio Factory
-        let newN = window.OptoRackAudio.createSynth(actx, overrideParams, template, window.OptoRackState.currentRootNote);
+        let newN;
+        try {
+            newN = window.OptoRackAudio.createSynth(actx, overrideParams, template, window.OptoRackState.currentRootNote);
+        } catch (e) {
+            console.error("CRITICAL: Failed to spawn synth", e);
+            return;
+        }
+        if (!newN) return;
+        
         newN.id = modId;
 
         // Visual initialization
@@ -1052,8 +1059,57 @@ function App() {
         if (param === 'mid' && mod.id.startsWith('FX_OTT')) mod.nodes.gM.gain.setTargetAtTime(val, ct, 0.1);
         if (param === 'high' && mod.id.startsWith('FX_OTT')) mod.nodes.gH.gain.setTargetAtTime(val, ct, 0.1);
         if (param === 'vol' && mod.id.startsWith('UTILITY_IO')) mod.nodes.vol.gain.setTargetAtTime(Math.pow(10, val / 20), ct, 0.1);
-        if (param === 'pan' && mod.id.startsWith('UTILITY_IO')) mod.nodes.pan.pan.setTargetAtTime(val, ct, 0.1);
-        if (param === 'isMono' && mod.id.startsWith('UTILITY_IO')) { mod.nodes.mono.channelCount = val ? 1 : 2; mod.nodes.mono.channelCountMode = val ? 'explicit' : 'max'; }
+        if (param === 'pan' && mod.id.startsWith('UTILITY_IO')) {
+            const panVal = parseFloat(val); // 0 to 1
+            if (mod.params.isMono) {
+                mod.nodes.vcaL.gain.setTargetAtTime(0.707, ct, 0.05);
+                mod.nodes.vcaR.gain.setTargetAtTime(0.707, ct, 0.05);
+            } else {
+                // Constant power panning
+                mod.nodes.vcaL.gain.setTargetAtTime(Math.cos(panVal * Math.PI / 2), ct, 0.05);
+                mod.nodes.vcaR.gain.setTargetAtTime(Math.sin(panVal * Math.PI / 2), ct, 0.05);
+            }
+        }
+        if (param === 'isMono' && mod.id.startsWith('UTILITY_IO')) {
+            if (val) {
+                mod.nodes.vcaL.gain.setTargetAtTime(0.707, ct, 0.05);
+                mod.nodes.vcaR.gain.setTargetAtTime(0.707, ct, 0.05);
+            } else {
+                const pan = mod.params.pan || 0.5;
+                mod.nodes.vcaL.gain.setTargetAtTime(Math.cos(pan * Math.PI / 2), ct, 0.05);
+                mod.nodes.vcaR.gain.setTargetAtTime(Math.sin(pan * Math.PI / 2), ct, 0.05);
+            }
+        }
+
+        if (mod.type === 'SYNTH') {
+            if (param === 'cut') {
+                if (mod.fB1) mod.fB1.frequency.setTargetAtTime(val, ct, 0.05);
+                if (mod.fB2) mod.fB2.frequency.setTargetAtTime(val, ct, 0.05);
+                mod.actualCut = val;
+            }
+            if (param === 'res') {
+                if (mod.fB1) mod.fB1.Q.setTargetAtTime(val * 0.7, ct, 0.05);
+                if (mod.fB2) mod.fB2.Q.setTargetAtTime(val * 0.7, ct, 0.05);
+            }
+            if (param === 'drive' && mod.nodes.synthDrive) {
+                mod.nodes.synthDrive.gain.setTargetAtTime(Math.pow(10, val / 20), ct, 0.1);
+            }
+            if (param === 'unison' && mod.unisonGains) {
+                mod.unisonGains.forEach((g, i) => {
+                    const isActive = i < val;
+                    g.gain.setTargetAtTime(isActive ? 1.0 : 0.0, ct, 0.1);
+                });
+            }
+            if (param === 'gain' && mod.vca) mod.vca.gain.setTargetAtTime(val, ct, 0.05);
+            if (param === 'subLvl' && mod.subGain) mod.subGain.gain.setTargetAtTime(val, ct, 0.05);
+            if (param === 'noiseLvl' && mod.noiseGain) mod.noiseGain.gain.setTargetAtTime(val, ct, 0.05);
+            if (param === 'detune' && mod.unisonOscs) {
+                mod.unisonOscs.forEach((osc, i) => {
+                    const spreadFactor = (i / (mod.unisonOscs.length - 1 || 1)) - 0.5;
+                    osc.detune.setTargetAtTime(spreadFactor * val * 1200, ct, 0.05);
+                });
+            }
+        }
     };
 
     const updateParam = (modId, param, val, isMacro = false) => {
