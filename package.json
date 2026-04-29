@@ -1,0 +1,9 @@
+{
+  "name": "optorack-studio",
+  "private": true,
+  "version": "1.0.0",
+  "description": "OptoRack static app",
+  "scripts": {
+    "start": "node scripts/serve.js"
+  }
+}

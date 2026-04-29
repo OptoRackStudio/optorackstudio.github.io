@@ -1,0 +1,69 @@
+<!-- 
+    OPTORACK STUDIO - ENTRY POINT
+    Architectural Role: The Bootstrapper & Layer Manager
+    - Coordinates the loading of React, Web Audio, and WebGL modules.
+    - Defines the DOM hierarchy for Z-index layering (Background -> World -> UI).
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OptoRack - Pro Edition</title>
+    
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    
+    <!-- Link to external stylesheet -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel" src="js/runtime/unity-like-runtime/index.js"></script>
+    <script type="text/babel" src="js/runtime/unity-like-runtime/config/resolution-profiles.js"></script>
+    <script type="text/babel" src="js/runtime/unity-like-runtime/core/runtime-state.js"></script>
+    <script type="text/babel" src="js/runtime/unity-like-runtime/services/resolution-service.js"></script>
+    <script type="text/babel" src="js/runtime/unity-like-runtime/core/boot.js"></script>
+    <script type="text/babel" src="js/core/globals-and-helpers.js"></script>
+    <script type="text/babel" src="js/audio/dsp-helpers.js"></script>
+    <script type="text/babel" src="js/audio/node-factories.js"></script>
+    <script type="text/babel" src="js/render/camera-system.js"></script>
+    <script type="text/babel" src="js/render/render-loop.js"></script>
+    <script type="text/babel" src="js/core/SpawnManager.js"></script>
+    <script type="text/babel" src="js/ui/error-and-perf.js"></script>
+    <script type="text/babel" src="js/ui/base-components.js"></script>
+    <script type="text/babel" src="js/ui/render-components.js"></script>
+    <script type="text/babel" src="js/ui/visualizers-and-webgl.js"></script>
+    <script type="text/babel" src="js/ui/panels/tips-panel.js"></script>
+    <script type="text/babel" src="js/ui/panels/beginner-guide-panel.js"></script>
+    <script type="text/babel" src="js/multiplayer/network-manager.js"></script>
+    <script type="text/babel" src="js/ui/panels/lobby-screen.js"></script>
+    <script type="text/babel" src="js/ui/panels/minimap.js"></script>
+    <script type="text/babel" src="js/module-library/index.js"></script>
+    <script type="text/babel" src="js/module-library/fx/utilities-and-routing/utility-io.module.js"></script>
+    <script type="text/babel" src="js/module-library/fx/audio-effects/fx-eq.module.js"></script>
+    <script type="text/babel" src="js/module-library/fx/audio-effects/fx-autofilter.module.js"></script>
+    <script type="text/babel" src="js/module-library/fx/audio-effects/fx-pro-rev.module.js"></script>
+    <script type="text/babel" src="js/module-library/fx/audio-effects/fx-ott.module.js"></script>
+    <script type="text/babel" src="js/module-library/fx/audio-effects/fx-sidechain.module.js"></script>
+    <script type="text/babel" src="js/module-library/fx/audio-effects/fx-transient.module.js"></script>
+    <script type="text/babel" src="js/module-library/fx/sequencers-and-modulation/prob-seq.module.js"></script>
+    <script type="text/babel" src="js/module-library/fx/sequencers-and-modulation/mod-lfo.module.js"></script>
+    <script type="text/babel" src="js/module-library/fx/sequencers-and-modulation/fx-rhythm.module.js"></script>
+    <script type="text/babel" src="js/sound-engine/index.js"></script>
+    <script type="text/babel" src="js/sound-engine/config/quality-profiles.js"></script>
+    <script type="text/babel" src="js/sound-engine/config/options.js"></script>
+    <script type="text/babel" src="js/sound-engine/runtime/create-audio-context.js"></script>
+    <script type="text/babel" src="js/app/config/quick-tweaks.js"></script>
+    <script type="text/babel" src="js/app/config/tips/tips.data.js"></script>
+    <script type="text/babel" src="js/app/config/tutorial/tutorial.data.js"></script>
+    <script type="text/babel" src="js/app/main-app.js"></script>
+</body>
+</html>
+
