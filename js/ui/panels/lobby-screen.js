@@ -1,5 +1,5 @@
 const LobbyScreen = ({ onStart, savedProjects = [], onLoadProject }) => {
-    const [activeTab, setActiveTab] = React.useState('SOLO'); 
+    const [activeTab, setActiveTab] = React.useState('SOLO');
     const [joinId, setJoinId] = React.useState('');
     const [status, setStatus] = React.useState('SYSTEM_READY');
     const [isConnecting, setIsConnecting] = React.useState(false);
@@ -21,12 +21,12 @@ const LobbyScreen = ({ onStart, savedProjects = [], onLoadProject }) => {
                 const id = localStorage.getItem('optorack_local_host_id');
                 const name = localStorage.getItem('optorack_local_host_name');
                 const time = localStorage.getItem('optorack_local_host_time');
-                if (id && Date.now() - parseInt(time) < 10000) { 
+                if (id && Date.now() - parseInt(time) < 10000) {
                     setLocalServers([{ id, name, type: 'LAN_NODE', ping: '<1ms' }]);
                 } else {
                     setLocalServers([]);
                 }
-            } catch(e) {}
+            } catch (e) { }
         };
         checkLocal();
         const interval = setInterval(checkLocal, 3000);
@@ -87,16 +87,16 @@ const LobbyScreen = ({ onStart, savedProjects = [], onLoadProject }) => {
             </div>
 
             <div className={`lobby-main-layout ${isSidebarOpen ? 'sidebar-open' : ''}`} style={{ opacity: bootPhase >= 2 ? 1 : 0, transform: `translateY(${bootPhase >= 2 ? '0' : '20px'})` }}>
-                
+
                 <div className="lobby-sidebar glass-panel">
                     <div className="lobby-logo">
                         OPTO<span className="cyan">RACK</span>
-                        <div className="logo-sub">STUDIO_SUITE</div>
+                        <div className="logo-sub">STUDIO_DEMO</div>
                     </div>
                     <div className="nav-group">
                         {tabs.map(tab => (
-                            <button 
-                                key={tab.id} 
+                            <button
+                                key={tab.id}
                                 className={`nav-item ${activeTab === tab.id ? 'active' : ''}`}
                                 onClick={() => { setActiveTab(tab.id); setIsSidebarOpen(false); }}
                             >
@@ -115,7 +115,7 @@ const LobbyScreen = ({ onStart, savedProjects = [], onLoadProject }) => {
                 </div>
 
                 <div className="lobby-content glass-panel">
-                    
+
                     {activeTab === 'SOLO' && (
                         <div className="tab-pane">
                             <h2 className="pane-title">STUDIO_OFFLINE</h2>
@@ -144,7 +144,7 @@ const LobbyScreen = ({ onStart, savedProjects = [], onLoadProject }) => {
                                     </div>
                                 )) : (
                                     <div className="empty-state">
-                                        NO_PROJECTS_DETECTED<br/>
+                                        NO_PROJECTS_DETECTED<br />
                                         <span style={{ fontSize: '9px', opacity: 0.5 }}>ACCESS VIA STUDIO FIRST</span>
                                     </div>
                                 )}
@@ -179,10 +179,10 @@ const LobbyScreen = ({ onStart, savedProjects = [], onLoadProject }) => {
                             <div className="direct-join-area glass-panel">
                                 <label>TARGET_LOBBY_ID</label>
                                 <div className="join-row">
-                                    <input 
-                                        type="text" 
-                                        value={joinId} 
-                                        onChange={e => setJoinId(e.target.value)} 
+                                    <input
+                                        type="text"
+                                        value={joinId}
+                                        onChange={e => setJoinId(e.target.value)}
                                         placeholder="OPTO-XXXXXX"
                                         className="cyber-input"
                                     />
@@ -205,9 +205,9 @@ const LobbyScreen = ({ onStart, savedProjects = [], onLoadProject }) => {
                             <div className="profile-edit glass-panel">
                                 <div className="input-group">
                                     <label>NICKNAME</label>
-                                    <input 
-                                        type="text" 
-                                        value={nickname} 
+                                    <input
+                                        type="text"
+                                        value={nickname}
                                         onChange={e => { setNickname(e.target.value); window.OptoNetwork.setUsername(e.target.value); }}
                                         className="cyber-input"
                                     />
@@ -229,7 +229,8 @@ const LobbyScreen = ({ onStart, savedProjects = [], onLoadProject }) => {
                 </div>
             </div>
 
-            <style dangerouslySetInnerHTML={{__html: `
+            <style dangerouslySetInnerHTML={{
+                __html: `
                 .opto-lobby-root {
                     width: 100vw; height: 100vh; background: #07070A; color: #fff;
                     display: flex; align-items: center; justify-content: center;

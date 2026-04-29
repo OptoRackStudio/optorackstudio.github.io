@@ -24,7 +24,7 @@ const MASTER_PROFILES = {
  * - Coordinates between UI interaction and the low-level Web Audio/WebGL drivers.
  */
 function App() {
-    const { 
+    const {
         Knob, Slider, ModuleJack, DraggableWindow, BrowserItem, StepGrid,
         WavetablePanelDisplay, EnvVisualizer, FilterVisualizer, LfoVisualizer, ParametricEQ,
         MasterLoudnessMonitor, VisualEnginePreview, WebGLBackground,
@@ -99,24 +99,24 @@ function App() {
         {
             name: "KICK - PRO EDM",
             topo: new Float32Array(2048).fill(0).map((_, i) => Math.exp(-i * 0.02) + (i < 50 ? Math.random() * 0.2 : 0)),
-            params: { 
-                atk: 0.002, dec: 0.15, sus: 0.0, rel: 0.15, 
+            params: {
+                atk: 0.002, dec: 0.15, sus: 0.0, rel: 0.15,
                 cut: 120, res: 4.5, drive: 22, filterType: 'lowpass',
                 unison: 1, pEnv: 85, ampScl: 2.0, fmAmt: 0.2,
-                subOn: true, subLvl: 1.0, subFilter: false, 
+                subOn: true, subLvl: 1.0, subFilter: false,
                 oscOn: true, noiseOn: true, noiseLvl: 0.1, noiseColor: 4000,
-                isLive: false 
+                isLive: false
             }
         },
         {
             name: "HI-HAT - METALLIC",
             topo: new Float32Array(2048).fill(0).map((_, i) => Math.random()),
-            params: { 
-                atk: 0.001, dec: 0.05, sus: 0.0, rel: 0.04, 
+            params: {
+                atk: 0.001, dec: 0.05, sus: 0.0, rel: 0.04,
                 cut: 15000, res: 0.1, drive: 0, filterType: 'highpass',
-                pitch: 60, unison: 1, 
+                pitch: 60, unison: 1,
                 noiseOn: true, noiseLvl: 0.7, noiseFilter: true,
-                oscOn: true, subOn: false, 
+                oscOn: true, subOn: false,
                 formant: 4.5, crush: 0.6, isLive: false,
                 ampScl: 0.5
             }
@@ -124,22 +124,22 @@ function App() {
         {
             name: "SNARE - CLINICAL",
             topo: new Float32Array(2048).fill(0).map((_, i) => Math.random() * Math.exp(-i * 0.05)),
-            params: { 
-                atk: 0.001, dec: 0.08, sus: 0.0, rel: 0.08, 
+            params: {
+                atk: 0.001, dec: 0.08, sus: 0.0, rel: 0.08,
                 cut: 4000, res: 0.5, drive: 8, filterType: 'bandpass',
                 unison: 3, detune: 0.1, noiseOn: true, noiseLvl: 0.5,
-                ampScl: 1.2, isLive: false 
+                ampScl: 1.2, isLive: false
             }
         },
         {
             name: "BASS - REESE GROWL",
             topo: new Float32Array(2048).fill(0).map((_, i) => (i % 32 < 16 ? 1 : 0)),
-            params: { 
-                atk: 0.01, dec: 0.4, sus: 0.6, rel: 0.3, 
+            params: {
+                atk: 0.01, dec: 0.4, sus: 0.6, rel: 0.3,
                 cut: 600, res: 2.0, drive: 12, filterType: 'lowpass',
                 unison: 9, detune: 0.12, unisonSpread: 1.0,
                 subOn: true, subLvl: 0.8, subFilter: true,
-                fmAmt: 0.25, isLive: false 
+                fmAmt: 0.25, isLive: false
             }
         },
         {
@@ -155,7 +155,7 @@ function App() {
         },
         {
             name: "BASS - 303 ACID",
-            topo: new Float32Array(2048).fill(0).map((_, i) => (i % 64 < 32 ? 1 : 0)), 
+            topo: new Float32Array(2048).fill(0).map((_, i) => (i % 64 < 32 ? 1 : 0)),
             params: {
                 atk: 0.01, dec: 0.35, sus: 0.15, rel: 0.15,
                 cut: 350, res: 22.0, drive: 25, filterType: 'lowpass',
@@ -254,21 +254,21 @@ function App() {
         const tips = (window.AppTips && window.AppTips.items) || [];
         const tipCount = tips.length || 1;
         const tipInterval = setInterval(() => setTipIndex(Math.floor(Math.random() * tipCount)), TWEAKS.timings.proTipRotateMs);
-        
+
         window.OptoNetwork.onPlayerListUpdated = (list) => {
             setPlayersList(list);
         };
-        
+
         window.OptoNetwork.onPermissionsChanged = (perms) => {
             setPermissions({ ...perms });
         };
-        
+
         const diagnosticInterval = setInterval(() => {
             if (window.OptoNetwork.latency !== latency) {
                 setLatency(window.OptoNetwork.latency);
             }
         }, 1000);
-        
+
         return () => {
             clearInterval(tipInterval);
             clearInterval(diagnosticInterval);
@@ -392,21 +392,21 @@ function App() {
         const masterIn = actx.createGain(); masterIn.connect(masterVol);
 
         // --- PROFESSIONAL EDM MASTER CHAIN (TARGET: -7 LUFS) ---
-        const masterHPF = actx.createBiquadFilter(); masterHPF.type = 'highpass'; masterHPF.frequency.value = 20; 
+        const masterHPF = actx.createBiquadFilter(); masterHPF.type = 'highpass'; masterHPF.frequency.value = 20;
         const masterTilt = actx.createBiquadFilter(); masterTilt.type = 'highshelf'; masterTilt.frequency.value = 5000; masterTilt.gain.value = 0.5;
 
         // Multiband Simulation (EQ pre-compression)
         const lowShelf = actx.createBiquadFilter(); lowShelf.type = 'lowshelf'; lowShelf.frequency.value = 120; lowShelf.gain.value = 0;
 
         const softClipper = actx.createWaveShaper(); softClipper.curve = makeSoftClipCurve(); softClipper.oversample = '4x';
-        
+
         // PRO LIMITER: -0.3dB True Peak ceiling, tight lookahead simulation
         const brickwall = actx.createDynamicsCompressor(); brickwall.threshold.value = -0.3; brickwall.ratio.value = 20; brickwall.attack.value = 0.001; brickwall.release.value = 0.080;
-        const finalClamp = actx.createWaveShaper(); finalClamp.curve = makeClampCurve(0.99); 
+        const finalClamp = actx.createWaveShaper(); finalClamp.curve = makeClampCurve(0.99);
 
-        masterVol.connect(masterHPF); masterHPF.connect(masterTilt); masterTilt.connect(lowShelf); lowShelf.connect(softClipper); 
+        masterVol.connect(masterHPF); masterHPF.connect(masterTilt); masterTilt.connect(lowShelf); lowShelf.connect(softClipper);
         softClipper.connect(brickwall); brickwall.connect(finalClamp); finalClamp.connect(actx.destination);
-        
+
         const dest = actx.createMediaStreamDestination(); finalClamp.connect(dest);
         const masterAnalyser = actx.createAnalyser(); masterAnalyser.fftSize = 4096; finalClamp.connect(masterAnalyser);
 
@@ -422,10 +422,10 @@ function App() {
                 // Add a 5 second timeout to getUserMedia in case user ignores the prompt
                 const getMediaPromise = navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: 640, height: 480 } });
                 const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Camera prompt timeout")), 5000));
-                
+
                 const feed = await Promise.race([getMediaPromise, timeoutPromise]);
                 if (vRef.current) { vRef.current.srcObject = feed; await vRef.current.play(); }
-                
+
                 if (mode === 'HOST') {
                     const vTrack = feed.getVideoTracks()[0];
                     const aTrack = dest.stream.getAudioTracks()[0];
@@ -438,7 +438,7 @@ function App() {
             } catch (err) {
                 console.warn("Camera blocked or timed out. Using mathematical fallback generator.", err);
                 cDsp.current.cameraFailed = true;
-                
+
                 // Still setup host audio stream even if camera fails
                 if (mode === 'HOST') {
                     const aTrack = dest.stream.getAudioTracks()[0];
@@ -467,7 +467,7 @@ function App() {
                 source.connect(masterAnalyser);
                 source.connect(actx.destination);
             };
-            
+
             // Apply cached stream if it arrived early
             if (window.OptoNetwork.remoteStream) {
                 window.OptoNetwork.onStream(window.OptoNetwork.remoteStream);
@@ -483,20 +483,20 @@ function App() {
                     const state = serializeProject();
                     window.OptoNetwork.send({ type: 'STATE_SYNC', data: state, visualTemplate });
                 };
-                
+
                 // Real-time ScanX sync from Host
                 const scanInterval = setInterval(() => {
                     if (window.OptoNetwork.isHost && networkMode === 'HOST') {
                         const activeId = sharedStateRef.current.activeSynthId || (synths[0]?.id);
                         if (activeId && cDsp.current.modules[activeId]) {
-                            window.OptoNetwork.send({ 
-                                type: 'SCAN_X_SYNC', 
-                                value: cDsp.current.modules[activeId].scanPhase 
+                            window.OptoNetwork.send({
+                                type: 'SCAN_X_SYNC',
+                                value: cDsp.current.modules[activeId].scanPhase
                             });
                         }
                     }
                 }, 50); // 20fps sync for scan line
-                
+
                 cDsp.current._scanSyncInterval = scanInterval;
             }
         }
@@ -531,28 +531,28 @@ function App() {
     const serializeProject = () => ({
         synths: synths.map(s => {
             const mod = cDsp.current.modules[s.id];
-            return { 
-                id: s.id, 
-                type: s.type, 
-                x: s.x, 
-                y: s.y, 
-                params: mod ? mod.baseParams : {} 
+            return {
+                id: s.id,
+                type: s.type,
+                x: s.x,
+                y: s.y,
+                params: mod ? mod.baseParams : {}
             };
         }),
         fxModules: fxModules.map(f => {
             const mod = cDsp.current.modules[f.id];
-            return { 
-                id: f.id, 
-                type: f.type, 
-                x: f.x, 
-                y: f.y, 
-                w: f.w, 
-                h: f.h, 
-                params: mod ? mod.baseParams : {} 
+            return {
+                id: f.id,
+                type: f.type,
+                x: f.x,
+                y: f.y,
+                w: f.w,
+                h: f.h,
+                params: mod ? mod.baseParams : {}
             };
         }),
         cables: cablesRef.current.map(c => ({ srcMod: c.srcMod, srcPort: c.srcPort, destMod: c.destMod, destPort: c.destPort, color: c.color })),
-        master: (cDsp.current.modules['MASTER'] ? cDsp.current.modules['MASTER'].baseParams : {}), 
+        master: (cDsp.current.modules['MASTER'] ? cDsp.current.modules['MASTER'].baseParams : {}),
         bpm, scale, rootNote, quality, resolutionProfile, visualTemplate
     });
 
@@ -663,16 +663,16 @@ function App() {
     // Architectural Note: Determines module initialization logic and hooks
     // the audio nodes directly into the persistent cDsp graph.
     const spawnFX = (type, overrideParams = null, offsetX = null, offsetY = null, forceId = null, forceW = null, forceH = null) => {
-        const actx = cDsp.current.actx; 
+        const actx = cDsp.current.actx;
         const id = forceId || `${type}_${Date.now()}`;
-        
+
         // Use the new Audio Factory
         let newMod = window.OptoRackAudio.createFX(type, actx, overrideParams);
         newMod.id = id;
         newMod.type = type;
 
         // Determine visual dimensions
-        let initialW = forceW || 380; 
+        let initialW = forceW || 380;
         let initialH = forceH || 320;
         if (type === 'FX_EQ') { initialW = 720; initialH = 390; }
         else if (type === 'FX_PRO_REV') { initialW = 480; initialH = 250; }
@@ -680,12 +680,12 @@ function App() {
         else if (type === 'UTILITY_IO') { initialW = 300; initialH = 200; }
 
         cDsp.current.modules[id] = newMod;
-        
+
         if (synths.length + fxModules.length >= (TWEAKS.ranges.maxModules || 50)) {
             alert("SYSTEM LIMIT REACHED: Maximum 50 modules allowed.");
             return;
         }
-        
+
         Object.keys(newMod.params).forEach(k => updateParamInternal(newMod, k, newMod.params[k]));
 
         const hasOffset = Number.isFinite(offsetX) && Number.isFinite(offsetY);
@@ -709,15 +709,15 @@ function App() {
         if (!actx) return;
 
         const modId = forceId || `VOICE_${Date.now()}`;
-        
+
         // Use the new Audio Factory
         let newN = window.OptoRackAudio.createSynth(actx, overrideParams, template, window.OptoRackState.currentRootNote);
         newN.id = modId;
 
         // Visual initialization
-        let initialW = 720; 
+        let initialW = 720;
         let initialH = 680;
-        
+
         const currentCat = Object.values(moduleLibraryByCategory).find(c => c.items.some(i => i.id === 'SYNTH'));
         const synthClr = currentCat ? currentCat.color : '#00E5FF';
         newN.mClr = synthClr;
@@ -809,7 +809,7 @@ function App() {
         if (viewMode !== "PATCHING" || isBrowserOpen || isProjectsOpen) return;
         const zoomSensitivity = 0.0015; const deltaZ = -e.deltaY * zoomSensitivity;
         const newZ = clamp(camRef.current.tz + deltaZ, 0.2, 2.5); const scaleRatio = newZ / camRef.current.tz;
-        
+
         // Loosen clamp to worldSize * 1.5 to allow reaching edges comfortably
         const worldSize = TWEAKS.ranges.worldSize || 5000;
         const limit = worldSize * 1.5;
@@ -826,14 +826,14 @@ function App() {
         const isBgClick = e.button === 0 && e.target.id === 'bg-interaction';
 
         if (!isMiddlePan && !isAltPan && !isBgClick) return;
-        
+
         // Check for assignMode (state-synced via ref logic if needed, but here we can just check the current state if this fn is fresh)
         if (assignMode && isBgClick) { setAssignMode(null); return; }
-        
+
         if (isMiddlePan) e.preventDefault();
 
         document.body.style.cursor = 'grabbing';
-        let lastX = e.clientX; 
+        let lastX = e.clientX;
         let lastY = e.clientY;
 
         disruptCursor.current.down = true;
@@ -844,12 +844,12 @@ function App() {
             if (!camRef.current) return;
             const worldSize = TWEAKS.ranges.worldSize || 5000;
             const limit = worldSize * 1.5;
-            
+
             // Calculate delta and update target camera position
             camRef.current.tx += (moveEvent.clientX - lastX);
             camRef.current.ty += (moveEvent.clientY - lastY);
-            
-            lastX = moveEvent.clientX; 
+
+            lastX = moveEvent.clientX;
             lastY = moveEvent.clientY;
 
             disruptCursor.current.x = moveEvent.clientX;
@@ -867,7 +867,7 @@ function App() {
         window.addEventListener('pointermove', onMove);
         window.addEventListener('pointerup', onUp);
         window.addEventListener('pointercancel', onUp);
-        
+
         if (isMiddlePan || isAltPan) e.stopPropagation();
     };
 
@@ -913,7 +913,7 @@ function App() {
 
     useEffect(() => {
         if (viewMode !== "PATCHING") return;
-        
+
         const renderer = new window.OptoRackRenderLoop({
             cDsp, camRef, bpmRef, synthsRef, fxModulesRef, cablesRef, sharedStateRef,
             canvasFg, scanCanvas, vRef, worldRef, glContainerRef,
@@ -925,10 +925,10 @@ function App() {
         return () => renderer.stop();
     }, [viewMode]); // Now ONLY restarts on viewMode change! Very stable.
 
-    const updatePipRegistry = (modId, portId, elm) => { 
+    const updatePipRegistry = (modId, portId, elm) => {
         if (!window.OptoRackJacks) window.OptoRackJacks = {};
-        if (elm) { 
-            jackElements.current[`${modId}_${portId}`] = elm; 
+        if (elm) {
+            jackElements.current[`${modId}_${portId}`] = elm;
             window.OptoRackJacks[`${modId}_${portId}`] = elm;
         } else {
             delete jackElements.current[`${modId}_${portId}`];
@@ -955,7 +955,7 @@ function App() {
                 return;
             }
         }
-        dragCableRef.current = { modId, portId, isInput }; 
+        dragCableRef.current = { modId, portId, isInput };
         window._dragCableRef = dragCableRef.current;
         window._activeWireColor = wireColor;
         disruptCursor.current.down = true; disruptCursor.current.x = e.clientX; disruptCursor.current.y = e.clientY;
@@ -964,8 +964,8 @@ function App() {
     const handleJackUp = (modId, portId, isInput) => {
         if (dragCableRef.current) {
             const src = dragCableRef.current; const dest = { modId, portId, isInput };
-            if (!src || (src.modId === dest.modId && src.portId === dest.portId)) { 
-                dragCableRef.current = null; window._dragCableRef = null; return; 
+            if (!src || (src.modId === dest.modId && src.portId === dest.portId)) {
+                dragCableRef.current = null; window._dragCableRef = null; return;
             }
             if (src.isInput !== dest.isInput) {
                 const outJack = src.isInput ? dest : src; const inJack = src.isInput ? src : dest;
@@ -991,9 +991,9 @@ function App() {
         cablesToRemove.forEach(c => {
             if (c.cableGain) { c.cableGain.gain.setTargetAtTime(0, cDsp.current.actx.currentTime, 0.05); setTimeout(() => { try { c.cableGain.disconnect(); } catch (e) { } }, 100); }
         });
-        if (cablesToRemove.length > 0) { 
-            cablesRef.current = cablesRef.current.filter(c => !cablesToRemove.includes(c)); 
-            setPatchCount(cablesRef.current.length); 
+        if (cablesToRemove.length > 0) {
+            cablesRef.current = cablesRef.current.filter(c => !cablesToRemove.includes(c));
+            setPatchCount(cablesRef.current.length);
             broadcastStructuralChange();
         }
     };
@@ -1036,7 +1036,7 @@ function App() {
         if (param === 'loCut' && mod.id.startsWith('FX_PRO_REV')) mod.nodes.lo.frequency.setTargetAtTime(val, ct, 0.1);
         if (param === 'hiCut' && mod.id.startsWith('FX_PRO_REV')) mod.nodes.hi.frequency.setTargetAtTime(val, ct, 0.1);
         if (param === 'spin' && mod.id.startsWith('FX_PRO_REV')) mod.nodes.spin.gain.setTargetAtTime(val, ct, 0.1);
-        if (param === 'cut' && mod.id.startsWith('FX_AUTOFILTER')) { mod.nodes.filter1.frequency.setTargetAtTime(val, ct, 0.1); mod.nodes.filter2.frequency.setTargetAtTime(val, ct, 0.1); }        if (mod.id.startsWith('FX_TRANSIENT')) {
+        if (param === 'cut' && mod.id.startsWith('FX_AUTOFILTER')) { mod.nodes.filter1.frequency.setTargetAtTime(val, ct, 0.1); mod.nodes.filter2.frequency.setTargetAtTime(val, ct, 0.1); } if (mod.id.startsWith('FX_TRANSIENT')) {
             // Simplified transient shaping logic (Actual DSP happens in Worklet or via complex gain routing usually)
             // For now, we simulate the 'impact' via gain bias
             if (param === 'attack') mod.nodes.shaper.gain.setTargetAtTime(val * 1.5, ct, 0.05);
@@ -1079,9 +1079,9 @@ function App() {
                     mod.fB2.frequency.setTargetAtTime(val, ct, 0.02);
                     mod.actualCut = val;
                 }
-                if (param === 'res') { 
-                    mod.fB1.Q.setTargetAtTime(val * 0.7, ct, 0.05); 
-                    mod.fB2.Q.setTargetAtTime(val * 0.7, ct, 0.05); 
+                if (param === 'res') {
+                    mod.fB1.Q.setTargetAtTime(val * 0.7, ct, 0.05);
+                    mod.fB2.Q.setTargetAtTime(val * 0.7, ct, 0.05);
                     const comp = 1.0 / (1.0 + (val * 0.1));
                     mod.oscGain.gain.setTargetAtTime(comp, ct, 0.05);
                 }
@@ -1118,7 +1118,7 @@ function App() {
                     const subSemi = mod.params.subSemi || 0;
                     const baseFreq = window.OptoRackDSP.getBaseFrequency(window.NOTES[rootNoteRef.current % 12] || 'C') * Math.pow(2, pitchVal / 12);
                     mod.unisonOscs.forEach(osc => osc.frequency.setTargetAtTime(baseFreq, ct, 0.1));
-                    
+
                     const subFreq = baseFreq * Math.pow(2, subOct) * Math.pow(2, subSemi / 12);
                     mod.subOsc.frequency.setTargetAtTime(subFreq, ct, 0.1);
                 }
@@ -1139,9 +1139,9 @@ function App() {
                     mod.nodes.vol.gain.setTargetAtTime(linear, ct, 0.1);
                 }
                 if (param === 'softClip') mod.nodes.soft.curve = val ? makeSoftClipCurve() : null;
-                if (param === 'limiter') { 
-                    mod.nodes.limit.threshold.setTargetAtTime(val ? -1.0 : 0.0, ct, 0.1); 
-                    mod.nodes.limit.ratio.setTargetAtTime(val ? 20.0 : 1.0, ct, 0.1); 
+                if (param === 'limiter') {
+                    mod.nodes.limit.threshold.setTargetAtTime(val ? -1.0 : 0.0, ct, 0.1);
+                    mod.nodes.limit.ratio.setTargetAtTime(val ? 20.0 : 1.0, ct, 0.1);
                     mod.nodes.limit.knee.setTargetAtTime(val ? 10.0 : 0.0, ct, 0.1);
                     if (mod.nodes.clamp) mod.nodes.clamp.curve = val ? window.makeClampCurve(0.98) : null;
                 }
@@ -1180,7 +1180,7 @@ function App() {
             // First, reset to a clean state to prevent crosstalk from previous presets
             const defaults = window.OptoRackAudio.getSynthDefaultParams();
             Object.entries(defaults).forEach(([k, v]) => updateParam(modId, k, v));
-            
+
             mod.snapshotTopo = new Float32Array(preset.topo);
             if (preset.params) {
                 Object.entries(preset.params).forEach(([k, v]) => {
@@ -1230,8 +1230,8 @@ function App() {
 
             {networkMode === 'MENU' && (
                 <div style={{ position: 'absolute', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 99999 }}>
-                    <window.LobbyScreen 
-                        onStart={(m) => handleLobbyStart(m)} 
+                    <window.LobbyScreen
+                        onStart={(m) => handleLobbyStart(m)}
                         savedProjects={savedProjects}
                         onLoadProject={async (handle) => {
                             setNetworkMode('OFFLINE');
@@ -1241,13 +1241,13 @@ function App() {
                     />
                 </div>
             )}
-            
+
             {viewMode === "SLEEP" && networkMode !== 'MENU' && (
                 <div className="sleep-overlay">
                     <div className="glass-panel sleep-panel">
-                        <h2 className="sleep-title">OPTORACK <span style={{ color: '#00E5FF', fontWeight: 'bold' }}>PRO</span></h2>
+                        <h2 className="sleep-title">OPTORACK - DEMO <span style={{ color: '#00E5FF', fontWeight: 'bold' }}>PRO</span></h2>
                         <p className="sleep-text">
-                            <b>SPECTROGRAM DSP ENVIRONMENT</b><br />
+                            <b>EPILEPSY WARNING </b><br />
                             Please ensure all optical sensors are calibrated.<br />
                             Patching cables may result in unexpected resonance.
                         </p>
@@ -1331,76 +1331,76 @@ function App() {
 
                             <div className="top-bar-right">
                                 <div className="glass-panel session-mgnt">
-                                {networkMode === 'OFFLINE' && (
-                                    <>
-                                        <button onClick={async () => {
-                                            try {
-                                                await window.OptoNetwork.initHost();
-                                                setNetworkMode('HOST');
-                                                const aTrack = cDsp.current.dest.stream.getAudioTracks()[0];
-                                                let vTrack;
-                                                if (vRef.current && vRef.current.srcObject) {
-                                                    vTrack = vRef.current.srcObject.getVideoTracks()[0];
-                                                } else {
-                                                    const canvas = document.createElement('canvas'); canvas.width = 640; canvas.height = 480;
-                                                    vTrack = canvas.captureStream(30).getVideoTracks()[0];
-                                                }
-                                                if (vTrack && aTrack) {
-                                                    const combined = new MediaStream([vTrack, aTrack]);
-                                                    window.OptoNetwork.streamMedia(combined);
-                                                }
-                                            } catch(e) { console.error('Failed to go online', e); }
-                                        }} className="top-btn cyan-glow">GO ONLINE (HOST)</button>
-                                        <div className="divider" />
-                                    </>
-                                )}
+                                    {networkMode === 'OFFLINE' && (
+                                        <>
+                                            <button onClick={async () => {
+                                                try {
+                                                    await window.OptoNetwork.initHost();
+                                                    setNetworkMode('HOST');
+                                                    const aTrack = cDsp.current.dest.stream.getAudioTracks()[0];
+                                                    let vTrack;
+                                                    if (vRef.current && vRef.current.srcObject) {
+                                                        vTrack = vRef.current.srcObject.getVideoTracks()[0];
+                                                    } else {
+                                                        const canvas = document.createElement('canvas'); canvas.width = 640; canvas.height = 480;
+                                                        vTrack = canvas.captureStream(30).getVideoTracks()[0];
+                                                    }
+                                                    if (vTrack && aTrack) {
+                                                        const combined = new MediaStream([vTrack, aTrack]);
+                                                        window.OptoNetwork.streamMedia(combined);
+                                                    }
+                                                } catch (e) { console.error('Failed to go online', e); }
+                                            }} className="top-btn cyan-glow">GO ONLINE (HOST)</button>
+                                            <div className="divider" />
+                                        </>
+                                    )}
 
-                                {networkMode === 'HOST' && (
-                                    <>
-                                        <div className="console-group">
-                                            <span className="tiny-label">ID:</span>
-                                            <span className="console-val">{window.OptoNetwork.lobbyId}</span>
+                                    {networkMode === 'HOST' && (
+                                        <>
+                                            <div className="console-group">
+                                                <span className="tiny-label">ID:</span>
+                                                <span className="console-val">{window.OptoNetwork.lobbyId}</span>
+                                            </div>
+                                            <div className="divider" />
+                                        </>
+                                    )}
+
+                                    {networkMode !== 'OFFLINE' && (
+                                        <div className="player-list-container">
+                                            <span className="console-val cyan" style={{ cursor: 'pointer' }} onClick={() => {
+                                                const el = document.getElementById('player-dropdown');
+                                                el.style.display = el.style.display === 'none' ? 'block' : 'none';
+                                            }}>
+                                                {playersList.length}P
+                                            </span>
+                                            <div id="player-dropdown" className="glass-panel player-dropdown">
+                                                {playersList.map((p, i) => (
+                                                    <div key={i} className="player-row">
+                                                        <span>{p} {i === 0 ? '(HOST)' : ''}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <div className="divider" />
                                         </div>
-                                        <div className="divider" />
-                                    </>
-                                )}
+                                    )}
 
-                                {networkMode !== 'OFFLINE' && (
-                                    <div className="player-list-container">
-                                        <span className="console-val cyan" style={{ cursor: 'pointer' }} onClick={() => {
-                                            const el = document.getElementById('player-dropdown');
-                                            el.style.display = el.style.display === 'none' ? 'block' : 'none';
-                                        }}>
-                                            {playersList.length}P
-                                        </span>
-                                        <div id="player-dropdown" className="glass-panel player-dropdown">
-                                            {playersList.map((p, i) => (
-                                                <div key={i} className="player-row">
-                                                    <span>{p} {i === 0 ? '(HOST)' : ''}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                        <div className="divider" />
-                                    </div>
-                                )}
-
-                                {networkMode !== 'GUEST' && (
-                                    <>
-                                        <button onClick={saveProjectToDirectory} className="top-btn">SAVE</button>
-                                        <button onClick={async () => { if (saveDirectoryHandle) await refreshProjectsFromDirectory(saveDirectoryHandle); setIsProjectsOpen(!isProjectsOpen); }} className="top-btn">LOAD</button>
-                                        <div className="divider" />
-                                        <button onClick={chooseSaveDirectory} className="top-btn">DIR</button>
-                                    </>
-                                )}
+                                    {networkMode !== 'GUEST' && (
+                                        <>
+                                            <button onClick={saveProjectToDirectory} className="top-btn">SAVE</button>
+                                            <button onClick={async () => { if (saveDirectoryHandle) await refreshProjectsFromDirectory(saveDirectoryHandle); setIsProjectsOpen(!isProjectsOpen); }} className="top-btn">LOAD</button>
+                                            <div className="divider" />
+                                            <button onClick={chooseSaveDirectory} className="top-btn">DIR</button>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                         </div>
 
                         {/* NAVIGATION MINIMAP */}
-                        <window.Minimap 
-                            synths={synths} 
-                            fxModules={fxModules} 
-                            cam={camRef.current} 
+                        <window.Minimap
+                            synths={synths}
+                            fxModules={fxModules}
+                            cam={camRef.current}
                             onNavigate={(x, y) => {
                                 // Update targets for smooth lerping
                                 camRef.current.tx = x;
@@ -1417,7 +1417,7 @@ function App() {
                                     transition: 'left 0.05s linear, top 0.05s linear'
                                 }}>
                                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                        <path d="M4 4L9 20L12 14L18 11L4 4Z" fill="#00E5FF" stroke="#FFF" strokeWidth="1"/>
+                                        <path d="M4 4L9 20L12 14L18 11L4 4Z" fill="#00E5FF" stroke="#FFF" strokeWidth="1" />
                                     </svg>
                                     <div style={{ background: 'rgba(0, 229, 255, 0.8)', color: '#000', fontSize: '10px', fontWeight: 'bold', padding: '2px 4px', borderRadius: '4px', position: 'absolute', left: 15, top: 15, whiteSpace: 'nowrap' }}>
                                         {c.name}
@@ -1435,7 +1435,7 @@ function App() {
                             <div className="browser-overlay" onPointerDown={(e) => e.stopPropagation()}>
                                 <div className="browser-sidebar">
                                     <div className="lobby-logo" style={{ marginBottom: '60px' }}>
-                                        OPTO<span className="cyan">RACK</span>
+                                        OPTO<span className="cyan">RACK DEMO</span>
                                         <div className="logo-sub">MODULE_LIBRARY</div>
                                     </div>
                                     <div className="nav-group">
@@ -1467,7 +1467,7 @@ function App() {
                                                 ))}
                                             </React.Fragment>
                                         ))}
-                                        
+
                                         {libraryTab === 'PRESETS' && wtPresets.map((preset, idx) => (
                                             <div key={idx} className="browser-item" onClick={() => {
                                                 const activeId = sharedStateRef.current.activeSynthId || (synths[0]?.id);
@@ -1505,7 +1505,7 @@ function App() {
                             <div className="browser-overlay visuals-overlay" onPointerDown={(e) => e.stopPropagation()}>
                                 <div className="browser-sidebar">
                                     <div className="lobby-logo" style={{ marginBottom: '60px' }}>
-                                        OPTO<span className="cyan">RACK</span>
+                                        OPTO<span className="cyan">RACK DEMO</span>
                                         <div className="logo-sub">VISUAL_ENGINE</div>
                                     </div>
                                     <div className="nav-group">
@@ -1525,16 +1525,16 @@ function App() {
                                             CLOSE_VISUAL_CONFIG
                                         </div>
                                     </div>
-                                    
+
                                     <div style={{ display: 'flex', gap: '40px' }}>
                                         <div style={{ width: '300px', display: 'flex', flexDirection: 'column' }}>
                                             <div className="system-tag" style={{ marginBottom: '20px' }}>SELECT_TEMPLATE</div>
                                             <div className="browser-grid" style={{ gridTemplateColumns: '1fr', marginBottom: '20px' }}>
                                                 {['AR_ENVIRONMENT', 'HUD_DATAMESH', 'VOXEL_WORLD', 'LIDAR_SCAN', 'PHOTO_RECON', 'DEJA_VU', 'NATURAL_WORLD', 'PARTICLES', 'WIREFRAME_TERRAIN', 'NEON_WAVES', 'GLITCH_MATRIX', 'FLUID_CAUSTICS'].map(tmpl => (
-                                                    <div key={tmpl} 
+                                                    <div key={tmpl}
                                                         onClick={() => setVisualTemplate(tmpl)}
                                                         className="browser-item"
-                                                        style={{ 
+                                                        style={{
                                                             borderColor: visualTemplate === tmpl ? '#00E5FF' : 'rgba(255,255,255,0.1)',
                                                             background: visualTemplate === tmpl ? 'rgba(0, 229, 255, 0.1)' : 'rgba(255,255,255,0.03)',
                                                             padding: '12px'
@@ -1547,94 +1547,94 @@ function App() {
 
                                         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '20px' }}>
                                             <VisualEnginePreview height={300} />
-                                            
+
                                             <div className="system-tag">ADJUST_PARAMETERS</div>
                                             <div className="glass-panel" style={{ padding: '30px', borderRadius: '16px', flex: 1 }}>
                                                 {visualTemplate === 'AR_ENVIRONMENT' && (
                                                     <>
-                                                        <Slider label="DEPTH_SCALE" val={visualSettings.AR_ENVIRONMENT.depthScale} min={0} max={2000} step={10} onChange={(v) => setVisualSettings(p => ({...p, AR_ENVIRONMENT: {...p.AR_ENVIRONMENT, depthScale: v}}))} />
-                                                        <Slider label="OCCLUSION" val={visualSettings.AR_ENVIRONMENT.occlusion} min={0} max={1} step={0.01} onChange={(v) => setVisualSettings(p => ({...p, AR_ENVIRONMENT: {...p.AR_ENVIRONMENT, occlusion: v}}))} />
-                                                        <Slider label="SCAN_SPEED" val={visualSettings.AR_ENVIRONMENT.speed} min={0} max={5} step={0.01} onChange={(v) => setVisualSettings(p => ({...p, AR_ENVIRONMENT: {...p.AR_ENVIRONMENT, speed: v}}))} />
+                                                        <Slider label="DEPTH_SCALE" val={visualSettings.AR_ENVIRONMENT.depthScale} min={0} max={2000} step={10} onChange={(v) => setVisualSettings(p => ({ ...p, AR_ENVIRONMENT: { ...p.AR_ENVIRONMENT, depthScale: v } }))} />
+                                                        <Slider label="OCCLUSION" val={visualSettings.AR_ENVIRONMENT.occlusion} min={0} max={1} step={0.01} onChange={(v) => setVisualSettings(p => ({ ...p, AR_ENVIRONMENT: { ...p.AR_ENVIRONMENT, occlusion: v } }))} />
+                                                        <Slider label="SCAN_SPEED" val={visualSettings.AR_ENVIRONMENT.speed} min={0} max={5} step={0.01} onChange={(v) => setVisualSettings(p => ({ ...p, AR_ENVIRONMENT: { ...p.AR_ENVIRONMENT, speed: v } }))} />
                                                     </>
                                                 )}
                                                 {visualTemplate === 'HUD_DATAMESH' && (
                                                     <>
-                                                        <Slider label="HUD_GLOW" val={visualSettings.HUD_DATAMESH.hudGlow} min={0} max={5} step={0.1} onChange={(v) => setVisualSettings(p => ({...p, HUD_DATAMESH: {...p.HUD_DATAMESH, hudGlow: v}}))} />
-                                                        <Slider label="DRIFT" val={visualSettings.HUD_DATAMESH.speed} min={0} max={5} step={0.01} onChange={(v) => setVisualSettings(p => ({...p, HUD_DATAMESH: {...p.HUD_DATAMESH, speed: v}}))} />
+                                                        <Slider label="HUD_GLOW" val={visualSettings.HUD_DATAMESH.hudGlow} min={0} max={5} step={0.1} onChange={(v) => setVisualSettings(p => ({ ...p, HUD_DATAMESH: { ...p.HUD_DATAMESH, hudGlow: v } }))} />
+                                                        <Slider label="DRIFT" val={visualSettings.HUD_DATAMESH.speed} min={0} max={5} step={0.01} onChange={(v) => setVisualSettings(p => ({ ...p, HUD_DATAMESH: { ...p.HUD_DATAMESH, speed: v } }))} />
                                                     </>
                                                 )}
                                                 {visualTemplate === 'DEJA_VU' && (
                                                     <>
-                                                        <Slider label="POINT_SIZE" val={visualSettings.DEJA_VU.pointSize} min={0.1} max={10} step={0.1} onChange={(v) => setVisualSettings(p => ({...p, DEJA_VU: {...p.DEJA_VU, pointSize: v}}))} />
-                                                        <Slider label="DEPTH_SCALE" val={visualSettings.DEJA_VU.depthScale} min={0} max={2000} step={10} onChange={(v) => setVisualSettings(p => ({...p, DEJA_VU: {...p.DEJA_VU, depthScale: v}}))} />
-                                                        <Slider label="GHOSTING" val={visualSettings.DEJA_VU.ghosting} min={0} max={1} step={0.01} onChange={(v) => setVisualSettings(p => ({...p, DEJA_VU: {...p.DEJA_VU, ghosting: v}}))} />
+                                                        <Slider label="POINT_SIZE" val={visualSettings.DEJA_VU.pointSize} min={0.1} max={10} step={0.1} onChange={(v) => setVisualSettings(p => ({ ...p, DEJA_VU: { ...p.DEJA_VU, pointSize: v } }))} />
+                                                        <Slider label="DEPTH_SCALE" val={visualSettings.DEJA_VU.depthScale} min={0} max={2000} step={10} onChange={(v) => setVisualSettings(p => ({ ...p, DEJA_VU: { ...p.DEJA_VU, depthScale: v } }))} />
+                                                        <Slider label="GHOSTING" val={visualSettings.DEJA_VU.ghosting} min={0} max={1} step={0.01} onChange={(v) => setVisualSettings(p => ({ ...p, DEJA_VU: { ...p.DEJA_VU, ghosting: v } }))} />
                                                     </>
                                                 )}
                                                 {visualTemplate === 'NATURAL_WORLD' && (
                                                     <>
-                                                        <Slider label="POINT_SIZE" val={visualSettings.NATURAL_WORLD.pointSize} min={0.1} max={10} step={0.1} onChange={(v) => setVisualSettings(p => ({...p, NATURAL_WORLD: {...p.NATURAL_WORLD, pointSize: v}}))} />
-                                                        <Slider label="DEPTH_SCALE" val={visualSettings.NATURAL_WORLD.depthScale} min={0} max={2000} step={10} onChange={(v) => setVisualSettings(p => ({...p, NATURAL_WORLD: {...p.NATURAL_WORLD, depthScale: v}}))} />
-                                                        <Slider label="DRIFT" val={visualSettings.NATURAL_WORLD.speed} min={0} max={5} step={0.01} onChange={(v) => setVisualSettings(p => ({...p, NATURAL_WORLD: {...p.NATURAL_WORLD, speed: v}}))} />
+                                                        <Slider label="POINT_SIZE" val={visualSettings.NATURAL_WORLD.pointSize} min={0.1} max={10} step={0.1} onChange={(v) => setVisualSettings(p => ({ ...p, NATURAL_WORLD: { ...p.NATURAL_WORLD, pointSize: v } }))} />
+                                                        <Slider label="DEPTH_SCALE" val={visualSettings.NATURAL_WORLD.depthScale} min={0} max={2000} step={10} onChange={(v) => setVisualSettings(p => ({ ...p, NATURAL_WORLD: { ...p.NATURAL_WORLD, depthScale: v } }))} />
+                                                        <Slider label="DRIFT" val={visualSettings.NATURAL_WORLD.speed} min={0} max={5} step={0.01} onChange={(v) => setVisualSettings(p => ({ ...p, NATURAL_WORLD: { ...p.NATURAL_WORLD, speed: v } }))} />
                                                     </>
                                                 )}
                                                 {visualTemplate === 'PARTICLES' && (
                                                     <>
-                                                        <Slider label="POINT_SIZE" val={visualSettings.PARTICLES.size} min={1} max={20} step={0.1} onChange={(v) => setVisualSettings(p => ({...p, PARTICLES: {...p.PARTICLES, size: v}}))} />
-                                                        <Slider label="ELEVATION" val={visualSettings.PARTICLES.elevationMultiplier} min={0} max={1000} step={10} onChange={(v) => setVisualSettings(p => ({...p, PARTICLES: {...p.PARTICLES, elevationMultiplier: v}}))} />
-                                                        <Slider label="DRIFT_SPEED" val={visualSettings.PARTICLES.speed} min={0} max={3} step={0.01} onChange={(v) => setVisualSettings(p => ({...p, PARTICLES: {...p.PARTICLES, speed: v}}))} />
+                                                        <Slider label="POINT_SIZE" val={visualSettings.PARTICLES.size} min={1} max={20} step={0.1} onChange={(v) => setVisualSettings(p => ({ ...p, PARTICLES: { ...p.PARTICLES, size: v } }))} />
+                                                        <Slider label="ELEVATION" val={visualSettings.PARTICLES.elevationMultiplier} min={0} max={1000} step={10} onChange={(v) => setVisualSettings(p => ({ ...p, PARTICLES: { ...p.PARTICLES, elevationMultiplier: v } }))} />
+                                                        <Slider label="DRIFT_SPEED" val={visualSettings.PARTICLES.speed} min={0} max={3} step={0.01} onChange={(v) => setVisualSettings(p => ({ ...p, PARTICLES: { ...p.PARTICLES, speed: v } }))} />
                                                     </>
                                                 )}
                                                 {visualTemplate === 'WIREFRAME_TERRAIN' && (
                                                     <>
-                                                        <Slider label="ELEVATION" val={visualSettings.WIREFRAME_TERRAIN.elevationMultiplier} min={0} max={1000} step={10} onChange={(v) => setVisualSettings(p => ({...p, WIREFRAME_TERRAIN: {...p.WIREFRAME_TERRAIN, elevationMultiplier: v}}))} />
-                                                        <Slider label="SCAN_SPEED" val={visualSettings.WIREFRAME_TERRAIN.speed} min={0} max={3} step={0.01} onChange={(v) => setVisualSettings(p => ({...p, WIREFRAME_TERRAIN: {...p.WIREFRAME_TERRAIN, speed: v}}))} />
+                                                        <Slider label="ELEVATION" val={visualSettings.WIREFRAME_TERRAIN.elevationMultiplier} min={0} max={1000} step={10} onChange={(v) => setVisualSettings(p => ({ ...p, WIREFRAME_TERRAIN: { ...p.WIREFRAME_TERRAIN, elevationMultiplier: v } }))} />
+                                                        <Slider label="SCAN_SPEED" val={visualSettings.WIREFRAME_TERRAIN.speed} min={0} max={3} step={0.01} onChange={(v) => setVisualSettings(p => ({ ...p, WIREFRAME_TERRAIN: { ...p.WIREFRAME_TERRAIN, speed: v } }))} />
                                                     </>
                                                 )}
                                                 {visualTemplate === 'NEON_WAVES' && (
                                                     <>
-                                                        <Slider label="WAVE_COUNT" val={visualSettings.NEON_WAVES.waveCount} min={1} max={50} step={1} onChange={(v) => setVisualSettings(p => ({...p, NEON_WAVES: {...p.NEON_WAVES, waveCount: v}}))} />
-                                                        <Slider label="GLOW_INTENSITY" val={visualSettings.NEON_WAVES.glowIntensity} min={0.1} max={5.0} step={0.1} onChange={(v) => setVisualSettings(p => ({...p, NEON_WAVES: {...p.NEON_WAVES, glowIntensity: v}}))} />
-                                                        <Slider label="PULSE_SPEED" val={visualSettings.NEON_WAVES.speed} min={0} max={5} step={0.1} onChange={(v) => setVisualSettings(p => ({...p, NEON_WAVES: {...p.NEON_WAVES, speed: v}}))} />
+                                                        <Slider label="WAVE_COUNT" val={visualSettings.NEON_WAVES.waveCount} min={1} max={50} step={1} onChange={(v) => setVisualSettings(p => ({ ...p, NEON_WAVES: { ...p.NEON_WAVES, waveCount: v } }))} />
+                                                        <Slider label="GLOW_INTENSITY" val={visualSettings.NEON_WAVES.glowIntensity} min={0.1} max={5.0} step={0.1} onChange={(v) => setVisualSettings(p => ({ ...p, NEON_WAVES: { ...p.NEON_WAVES, glowIntensity: v } }))} />
+                                                        <Slider label="PULSE_SPEED" val={visualSettings.NEON_WAVES.speed} min={0} max={5} step={0.1} onChange={(v) => setVisualSettings(p => ({ ...p, NEON_WAVES: { ...p.NEON_WAVES, speed: v } }))} />
                                                     </>
                                                 )}
                                                 {visualTemplate === 'GLITCH_MATRIX' && (
                                                     <>
-                                                        <Slider label="GLITCH_AMT" val={visualSettings.GLITCH_MATRIX.glitchIntensity} min={0} max={5} step={0.1} onChange={(v) => setVisualSettings(p => ({...p, GLITCH_MATRIX: {...p.GLITCH_MATRIX, glitchIntensity: v}}))} />
-                                                        <Slider label="RESOLUTION" val={visualSettings.GLITCH_MATRIX.pixelation} min={1} max={50} step={1} onChange={(v) => setVisualSettings(p => ({...p, GLITCH_MATRIX: {...p.GLITCH_MATRIX, pixelation: v}}))} />
-                                                        <Slider label="STREAM_SPEED" val={visualSettings.GLITCH_MATRIX.speed} min={0} max={5} step={0.1} onChange={(v) => setVisualSettings(p => ({...p, GLITCH_MATRIX: {...p.GLITCH_MATRIX, speed: v}}))} />
+                                                        <Slider label="GLITCH_AMT" val={visualSettings.GLITCH_MATRIX.glitchIntensity} min={0} max={5} step={0.1} onChange={(v) => setVisualSettings(p => ({ ...p, GLITCH_MATRIX: { ...p.GLITCH_MATRIX, glitchIntensity: v } }))} />
+                                                        <Slider label="RESOLUTION" val={visualSettings.GLITCH_MATRIX.pixelation} min={1} max={50} step={1} onChange={(v) => setVisualSettings(p => ({ ...p, GLITCH_MATRIX: { ...p.GLITCH_MATRIX, pixelation: v } }))} />
+                                                        <Slider label="STREAM_SPEED" val={visualSettings.GLITCH_MATRIX.speed} min={0} max={5} step={0.1} onChange={(v) => setVisualSettings(p => ({ ...p, GLITCH_MATRIX: { ...p.GLITCH_MATRIX, speed: v } }))} />
                                                     </>
                                                 )}
                                                 {visualTemplate === 'FLUID_CAUSTICS' && (
                                                     <>
-                                                        <Slider label="VISCOSITY" val={visualSettings.FLUID_CAUSTICS.viscosity} min={0} max={1} step={0.01} onChange={(v) => setVisualSettings(p => ({...p, FLUID_CAUSTICS: {...p.FLUID_CAUSTICS, viscosity: v}}))} />
-                                                        <Slider label="SPLASH_FORCE" val={visualSettings.FLUID_CAUSTICS.splashForce} min={0.1} max={5.0} step={0.1} onChange={(v) => setVisualSettings(p => ({...p, FLUID_CAUSTICS: {...p.FLUID_CAUSTICS, splashForce: v}}))} />
-                                                        <Slider label="FLOW_RATE" val={visualSettings.FLUID_CAUSTICS.flow} min={0} max={5} step={0.1} onChange={(v) => setVisualSettings(p => ({...p, FLUID_CAUSTICS: {...p.FLUID_CAUSTICS, flow: v}}))} />
-                                                        <Slider label="SIM_SPEED" val={visualSettings.FLUID_CAUSTICS.speed} min={0} max={3} step={0.01} onChange={(v) => setVisualSettings(p => ({...p, FLUID_CAUSTICS: {...p.FLUID_CAUSTICS, speed: v}}))} />
+                                                        <Slider label="VISCOSITY" val={visualSettings.FLUID_CAUSTICS.viscosity} min={0} max={1} step={0.01} onChange={(v) => setVisualSettings(p => ({ ...p, FLUID_CAUSTICS: { ...p.FLUID_CAUSTICS, viscosity: v } }))} />
+                                                        <Slider label="SPLASH_FORCE" val={visualSettings.FLUID_CAUSTICS.splashForce} min={0.1} max={5.0} step={0.1} onChange={(v) => setVisualSettings(p => ({ ...p, FLUID_CAUSTICS: { ...p.FLUID_CAUSTICS, splashForce: v } }))} />
+                                                        <Slider label="FLOW_RATE" val={visualSettings.FLUID_CAUSTICS.flow} min={0} max={5} step={0.1} onChange={(v) => setVisualSettings(p => ({ ...p, FLUID_CAUSTICS: { ...p.FLUID_CAUSTICS, flow: v } }))} />
+                                                        <Slider label="SIM_SPEED" val={visualSettings.FLUID_CAUSTICS.speed} min={0} max={3} step={0.01} onChange={(v) => setVisualSettings(p => ({ ...p, FLUID_CAUSTICS: { ...p.FLUID_CAUSTICS, speed: v } }))} />
                                                     </>
                                                 )}
-                                                
+
                                                 <div className="system-tag" style={{ marginTop: '20px', color: '#00E5FF' }}>GLOBAL_CAMERA_CALIBRATION</div>
-                                                <Slider label="CAM_SENSITIVITY" val={visualSettings[visualTemplate].camSens} min={0} max={5} step={0.1} onChange={(v) => setVisualSettings(p => ({...p, [visualTemplate]: {...p[visualTemplate], camSens: v}}))} />
-                                                <Slider label="CAM_CONTRAST" val={visualSettings[visualTemplate].camContrast} min={0.5} max={3} step={0.1} onChange={(v) => setVisualSettings(p => ({...p, [visualTemplate]: {...p[visualTemplate], camContrast: v}}))} />
-                                                <Slider label="CAM_FREQUENCY" val={visualSettings[visualTemplate].camFreq} min={0.1} max={10} step={0.1} onChange={(v) => setVisualSettings(p => ({...p, [visualTemplate]: {...p[visualTemplate], camFreq: v}}))} />
+                                                <Slider label="CAM_SENSITIVITY" val={visualSettings[visualTemplate].camSens} min={0} max={5} step={0.1} onChange={(v) => setVisualSettings(p => ({ ...p, [visualTemplate]: { ...p[visualTemplate], camSens: v } }))} />
+                                                <Slider label="CAM_CONTRAST" val={visualSettings[visualTemplate].camContrast} min={0.5} max={3} step={0.1} onChange={(v) => setVisualSettings(p => ({ ...p, [visualTemplate]: { ...p[visualTemplate], camContrast: v } }))} />
+                                                <Slider label="CAM_FREQUENCY" val={visualSettings[visualTemplate].camFreq} min={0.1} max={10} step={0.1} onChange={(v) => setVisualSettings(p => ({ ...p, [visualTemplate]: { ...p[visualTemplate], camFreq: v } }))} />
                                                 {visualTemplate === 'PHOTO_RECON' && (
                                                     <>
-                                                        <Slider label="DEPTH_SCALE" val={visualSettings.PHOTO_RECON.depthScale} min={0} max={2000} step={10} onChange={(v) => setVisualSettings(p => ({...p, PHOTO_RECON: {...p.PHOTO_RECON, depthScale: v}}))} />
-                                                        <Slider label="ROOM_FOLD" val={visualSettings.PHOTO_RECON.roomFold} min={0} max={1} step={0.01} onChange={(v) => setVisualSettings(p => ({...p, PHOTO_RECON: {...p.PHOTO_RECON, roomFold: v}}))} />
-                                                        <Slider label="SCAN_SPEED" val={visualSettings.PHOTO_RECON.speed} min={0} max={3} step={0.01} onChange={(v) => setVisualSettings(p => ({...p, PHOTO_RECON: {...p.PHOTO_RECON, speed: v}}))} />
+                                                        <Slider label="DEPTH_SCALE" val={visualSettings.PHOTO_RECON.depthScale} min={0} max={2000} step={10} onChange={(v) => setVisualSettings(p => ({ ...p, PHOTO_RECON: { ...p.PHOTO_RECON, depthScale: v } }))} />
+                                                        <Slider label="ROOM_FOLD" val={visualSettings.PHOTO_RECON.roomFold} min={0} max={1} step={0.01} onChange={(v) => setVisualSettings(p => ({ ...p, PHOTO_RECON: { ...p.PHOTO_RECON, roomFold: v } }))} />
+                                                        <Slider label="SCAN_SPEED" val={visualSettings.PHOTO_RECON.speed} min={0} max={3} step={0.01} onChange={(v) => setVisualSettings(p => ({ ...p, PHOTO_RECON: { ...p.PHOTO_RECON, speed: v } }))} />
                                                     </>
                                                 )}
                                                 {visualTemplate === 'VOXEL_WORLD' && (
                                                     <>
-                                                        <Slider label="DEPTH_SCALE" val={visualSettings.VOXEL_WORLD.depthScale} min={0} max={2000} step={10} onChange={(v) => setVisualSettings(p => ({...p, VOXEL_WORLD: {...p.VOXEL_WORLD, depthScale: v}}))} />
-                                                        <Slider label="SPEED" val={visualSettings.VOXEL_WORLD.speed} min={0} max={3} step={0.01} onChange={(v) => setVisualSettings(p => ({...p, VOXEL_WORLD: {...p.VOXEL_WORLD, speed: v}}))} />
+                                                        <Slider label="DEPTH_SCALE" val={visualSettings.VOXEL_WORLD.depthScale} min={0} max={2000} step={10} onChange={(v) => setVisualSettings(p => ({ ...p, VOXEL_WORLD: { ...p.VOXEL_WORLD, depthScale: v } }))} />
+                                                        <Slider label="SPEED" val={visualSettings.VOXEL_WORLD.speed} min={0} max={3} step={0.01} onChange={(v) => setVisualSettings(p => ({ ...p, VOXEL_WORLD: { ...p.VOXEL_WORLD, speed: v } }))} />
                                                     </>
                                                 )}
                                                 {visualTemplate === 'LIDAR_SCAN' && (
                                                     <>
-                                                        <Slider label="DEPTH_SCALE" val={visualSettings.LIDAR_SCAN.depthScale} min={0} max={2000} step={10} onChange={(v) => setVisualSettings(p => ({...p, LIDAR_SCAN: {...p.LIDAR_SCAN, depthScale: v}}))} />
-                                                        <Slider label="POINT_SIZE" val={visualSettings.LIDAR_SCAN.pointSize} min={0.5} max={10} step={0.1} onChange={(v) => setVisualSettings(p => ({...p, LIDAR_SCAN: {...p.LIDAR_SCAN, pointSize: v}}))} />
-                                                        <Slider label="SPEED" val={visualSettings.LIDAR_SCAN.speed} min={0} max={3} step={0.01} onChange={(v) => setVisualSettings(p => ({...p, LIDAR_SCAN: {...p.LIDAR_SCAN, speed: v}}))} />
+                                                        <Slider label="DEPTH_SCALE" val={visualSettings.LIDAR_SCAN.depthScale} min={0} max={2000} step={10} onChange={(v) => setVisualSettings(p => ({ ...p, LIDAR_SCAN: { ...p.LIDAR_SCAN, depthScale: v } }))} />
+                                                        <Slider label="POINT_SIZE" val={visualSettings.LIDAR_SCAN.pointSize} min={0.5} max={10} step={0.1} onChange={(v) => setVisualSettings(p => ({ ...p, LIDAR_SCAN: { ...p.LIDAR_SCAN, pointSize: v } }))} />
+                                                        <Slider label="SPEED" val={visualSettings.LIDAR_SCAN.speed} min={0} max={3} step={0.01} onChange={(v) => setVisualSettings(p => ({ ...p, LIDAR_SCAN: { ...p.LIDAR_SCAN, speed: v } }))} />
                                                     </>
                                                 )}
                                                 {/* Add more sliders for other templates similarly */}
@@ -1671,68 +1671,68 @@ function App() {
                         </div>
                     </div>
 
-                        {cDsp.current.modules['MASTER'] && (
-                            <window.DraggableWindow id="MASTER" title="PRO MASTER BUSS" color="#FF0033" initialX={20} initialY={80} onDrag={() => {}} isFixed={true}>
-                                <div className="master-layout" style={{ padding: '12px', minWidth: '320px' }}>
-                                    <div className="master-col-left" style={{ paddingRight: '12px' }}>
-                                        <ModuleJack id="MASTER" n="AUD" t={true} type="audio" active={isPatched('MASTER', 'IN', true)} patchedColor={getPatchedColor('MASTER', 'IN', true)} domReg={(d) => updatePipRegistry('MASTER', 'IN', d)} onDown={(e) => handleJackDown(e, 'MASTER', 'IN', true)} onUp={() => handleJackUp('MASTER', 'IN', true)} onDoubleClick={() => clearJackCables('MASTER', 'IN', true)} />
-                                        <div className="master-rec-row">
-                                            <div className="master-rec-btn" onPointerDown={(e) => { e.stopPropagation(); toggleRecording(); }} 
-                                                style={{ background: isRecording ? '#FF0033' : '#111', boxShadow: isRecording ? '0 0 10px #FF0033' : 'none', width: '15px', height: '15px' }} />
-                                            <span style={{ fontSize: '8px', color: isRecording ? '#FF0033' : '#666' }}>REC</span>
-                                        </div>
-                                    </div>
-
-                                    <div className="master-col-mid" style={{ padding: '0 12px' }}>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                            <Knob label="OUT GAIN" val={cDsp.current.modules['MASTER'].params.vol} min={-60} max={12.0} step={0.1} def={0.0} onChange={(v) => updateParam('MASTER', 'vol', v)} />
-                                            <div className="master-profile-box">
-                                                <div className="tiny-label" style={{ marginBottom: '4px' }}>MASTER_PROFILE</div>
-                                                <select className="top-select" value={cDsp.current.modules['MASTER'].params.profile || 'NEUTRAL'} 
-                                                    onChange={(e) => {
-                                                        const pKey = e.target.value;
-                                                        const p = MASTER_PROFILES[pKey];
-                                                        updateParam('MASTER', 'profile', pKey);
-                                                        // Update actual nodes
-                                                        const limit = cDsp.current.modules['MASTER'].nodes.limit;
-                                                        limit.threshold.setTargetAtTime(p.threshold, cDsp.current.actx.currentTime, 0.05);
-                                                        limit.ratio.setTargetAtTime(p.ratio, cDsp.current.actx.currentTime, 0.05);
-                                                        limit.attack.setTargetAtTime(p.attack, cDsp.current.actx.currentTime, 0.05);
-                                                        limit.release.setTargetAtTime(p.release, cDsp.current.actx.currentTime, 0.05);
-                                                    }}
-                                                    onPointerDown={(e) => e.stopPropagation()}
-                                                    style={{ width: '100%', fontSize: '8px' }}
-                                                >
-                                                    {Object.keys(MASTER_PROFILES).map(k => <option key={k} value={k}>{k.replace('_', ' ')}</option>)}
-                                                </select>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="master-toggles" style={{ padding: '0 12px' }}>
-                                        <div className="master-toggle-row" onPointerDown={(e) => { e.stopPropagation(); updateParam('MASTER', 'softClip', !cDsp.current.modules['MASTER'].params.softClip); }}>
-                                            <div className="master-toggle-btn" style={{ background: cDsp.current.modules['MASTER'].params.softClip ? '#FF0033' : '#111' }} />
-                                            <div className="master-toggle-label">SOFT CLIP</div>
-                                        </div>
-                                        <div className="master-toggle-row" onPointerDown={(e) => { e.stopPropagation(); updateParam('MASTER', 'limiter', !cDsp.current.modules['MASTER'].params.limiter); }}>
-                                            <div className="master-toggle-btn" style={{ background: cDsp.current.modules['MASTER'].params.limiter ? '#FF0033' : '#111' }} />
-                                            <div className="master-toggle-label">BRICKWALL</div>
-                                        </div>
-                                        <div className="master-toggle-row" onPointerDown={(e) => { e.stopPropagation(); updateParam('MASTER', 'mute', !cDsp.current.modules['MASTER'].params.mute); }}>
-                                            <div className="master-toggle-btn" style={{ background: cDsp.current.modules['MASTER'].params.mute ? '#FF0033' : '#111' }} />
-                                            <div className="master-toggle-label">MUTE</div>
-                                        </div>
-                                    </div>
-
-                                    <div className="master-col-right" style={{ borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: '12px' }}>
-                                        <SpectrumAnalyzer analyser={cDsp.current.mAnalyser} />
-                                        <MasterLoudnessMonitor analyser={cDsp.current.mAnalyser} />
+                    {cDsp.current.modules['MASTER'] && (
+                        <window.DraggableWindow id="MASTER" title="PRO MASTER BUSS" color="#FF0033" initialX={20} initialY={80} onDrag={() => { }} isFixed={true}>
+                            <div className="master-layout" style={{ padding: '12px', minWidth: '320px' }}>
+                                <div className="master-col-left" style={{ paddingRight: '12px' }}>
+                                    <ModuleJack id="MASTER" n="AUD" t={true} type="audio" active={isPatched('MASTER', 'IN', true)} patchedColor={getPatchedColor('MASTER', 'IN', true)} domReg={(d) => updatePipRegistry('MASTER', 'IN', d)} onDown={(e) => handleJackDown(e, 'MASTER', 'IN', true)} onUp={() => handleJackUp('MASTER', 'IN', true)} onDoubleClick={() => clearJackCables('MASTER', 'IN', true)} />
+                                    <div className="master-rec-row">
+                                        <div className="master-rec-btn" onPointerDown={(e) => { e.stopPropagation(); toggleRecording(); }}
+                                            style={{ background: isRecording ? '#FF0033' : '#111', boxShadow: isRecording ? '0 0 10px #FF0033' : 'none', width: '15px', height: '15px' }} />
+                                        <span style={{ fontSize: '8px', color: isRecording ? '#FF0033' : '#666' }}>REC</span>
                                     </div>
                                 </div>
-                            </window.DraggableWindow>
-                        )}
 
-                        <div className="world-layer" ref={worldRef}>
+                                <div className="master-col-mid" style={{ padding: '0 12px' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                        <Knob label="OUT GAIN" val={cDsp.current.modules['MASTER'].params.vol} min={-60} max={12.0} step={0.1} def={0.0} onChange={(v) => updateParam('MASTER', 'vol', v)} />
+                                        <div className="master-profile-box">
+                                            <div className="tiny-label" style={{ marginBottom: '4px' }}>MASTER_PROFILE</div>
+                                            <select className="top-select" value={cDsp.current.modules['MASTER'].params.profile || 'NEUTRAL'}
+                                                onChange={(e) => {
+                                                    const pKey = e.target.value;
+                                                    const p = MASTER_PROFILES[pKey];
+                                                    updateParam('MASTER', 'profile', pKey);
+                                                    // Update actual nodes
+                                                    const limit = cDsp.current.modules['MASTER'].nodes.limit;
+                                                    limit.threshold.setTargetAtTime(p.threshold, cDsp.current.actx.currentTime, 0.05);
+                                                    limit.ratio.setTargetAtTime(p.ratio, cDsp.current.actx.currentTime, 0.05);
+                                                    limit.attack.setTargetAtTime(p.attack, cDsp.current.actx.currentTime, 0.05);
+                                                    limit.release.setTargetAtTime(p.release, cDsp.current.actx.currentTime, 0.05);
+                                                }}
+                                                onPointerDown={(e) => e.stopPropagation()}
+                                                style={{ width: '100%', fontSize: '8px' }}
+                                            >
+                                                {Object.keys(MASTER_PROFILES).map(k => <option key={k} value={k}>{k.replace('_', ' ')}</option>)}
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="master-toggles" style={{ padding: '0 12px' }}>
+                                    <div className="master-toggle-row" onPointerDown={(e) => { e.stopPropagation(); updateParam('MASTER', 'softClip', !cDsp.current.modules['MASTER'].params.softClip); }}>
+                                        <div className="master-toggle-btn" style={{ background: cDsp.current.modules['MASTER'].params.softClip ? '#FF0033' : '#111' }} />
+                                        <div className="master-toggle-label">SOFT CLIP</div>
+                                    </div>
+                                    <div className="master-toggle-row" onPointerDown={(e) => { e.stopPropagation(); updateParam('MASTER', 'limiter', !cDsp.current.modules['MASTER'].params.limiter); }}>
+                                        <div className="master-toggle-btn" style={{ background: cDsp.current.modules['MASTER'].params.limiter ? '#FF0033' : '#111' }} />
+                                        <div className="master-toggle-label">BRICKWALL</div>
+                                    </div>
+                                    <div className="master-toggle-row" onPointerDown={(e) => { e.stopPropagation(); updateParam('MASTER', 'mute', !cDsp.current.modules['MASTER'].params.mute); }}>
+                                        <div className="master-toggle-btn" style={{ background: cDsp.current.modules['MASTER'].params.mute ? '#FF0033' : '#111' }} />
+                                        <div className="master-toggle-label">MUTE</div>
+                                    </div>
+                                </div>
+
+                                <div className="master-col-right" style={{ borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: '12px' }}>
+                                    <SpectrumAnalyzer analyser={cDsp.current.mAnalyser} />
+                                    <MasterLoudnessMonitor analyser={cDsp.current.mAnalyser} />
+                                </div>
+                            </div>
+                        </window.DraggableWindow>
+                    )}
+
+                    <div className="world-layer" ref={worldRef}>
 
                         {fxModules.map(fx => {
                             const mod = cDsp.current.modules[fx.id];
@@ -1774,7 +1774,7 @@ function App() {
                                                 </div>
                                                 <div className="preset-grid">
                                                     {window.FX_PRESETS['FX_EQ'].map(p => (
-                                                        <div key={p.name} className="preset-option" onClick={() => { Object.entries(p.params).forEach(([k,v]) => updateParam(fx.id, k, v)); updateParam(fx.id, 'showPresets', false); }}>{p.name}</div>
+                                                        <div key={p.name} className="preset-option" onClick={() => { Object.entries(p.params).forEach(([k, v]) => updateParam(fx.id, k, v)); updateParam(fx.id, 'showPresets', false); }}>{p.name}</div>
                                                     ))}
                                                 </div>
                                             </div>
@@ -1804,7 +1804,7 @@ function App() {
                                                 </div>
                                                 <div className="preset-grid">
                                                     {window.FX_PRESETS['FX_DELAY'].map(p => (
-                                                        <div key={p.name} className="preset-option" onClick={() => { Object.entries(p.params).forEach(([k,v]) => updateParam(fx.id, k, v)); updateParam(fx.id, 'showPresets', false); }}>{p.name}</div>
+                                                        <div key={p.name} className="preset-option" onClick={() => { Object.entries(p.params).forEach(([k, v]) => updateParam(fx.id, k, v)); updateParam(fx.id, 'showPresets', false); }}>{p.name}</div>
                                                     ))}
                                                 </div>
                                             </div>
@@ -1837,7 +1837,7 @@ function App() {
                                                 </div>
                                                 <div className="preset-grid">
                                                     {window.FX_PRESETS['FX_AUTOFILTER'].map(p => (
-                                                        <div key={p.name} className="preset-option" onClick={() => { Object.entries(p.params).forEach(([k,v]) => updateParam(fx.id, k, v)); updateParam(fx.id, 'showPresets', false); }}>{p.name}</div>
+                                                        <div key={p.name} className="preset-option" onClick={() => { Object.entries(p.params).forEach(([k, v]) => updateParam(fx.id, k, v)); updateParam(fx.id, 'showPresets', false); }}>{p.name}</div>
                                                     ))}
                                                 </div>
                                             </div>
@@ -1880,7 +1880,7 @@ function App() {
                                                 </div>
                                                 <div className="preset-grid">
                                                     {window.FX_PRESETS['FX_PRO_REV'].map(p => (
-                                                        <div key={p.name} className="preset-option" onClick={() => { Object.entries(p.params).forEach(([k,v]) => updateParam(fx.id, k, v)); updateParam(fx.id, 'showPresets', false); }}>{p.name}</div>
+                                                        <div key={p.name} className="preset-option" onClick={() => { Object.entries(p.params).forEach(([k, v]) => updateParam(fx.id, k, v)); updateParam(fx.id, 'showPresets', false); }}>{p.name}</div>
                                                     ))}
                                                 </div>
                                             </div>
@@ -1941,7 +1941,7 @@ function App() {
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                             <ModuleJack id={fx.id} n="AUDIO IN" t={true} type="audio" active={isPatched(fx.id, 'IN', true)} patchedColor={getPatchedColor(fx.id, 'IN', true)} domReg={(d) => updatePipRegistry(fx.id, 'IN', d)} onDown={(e) => handleJackDown(e, fx.id, 'IN', true)} onUp={() => handleJackUp(fx.id, 'IN', true)} onDoubleClick={() => clearJackCables(fx.id, 'IN', true)} />
                                             <div className="ks-rates" style={{ display: 'flex', gap: '5px' }}>
-                                                {[{l:'1/8', v:2}, {l:'1/4', v:1}, {l:'1/2', v:0.5}, {l:'1/1', v:0.25}].map(r => (
+                                                {[{ l: '1/8', v: 2 }, { l: '1/4', v: 1 }, { l: '1/2', v: 0.5 }, { l: '1/1', v: 0.25 }].map(r => (
                                                     <div key={r.l} onPointerDown={(e) => { e.stopPropagation(); updateParam(fx.id, 'rate', r.v); }} style={{ padding: '4px 8px', background: mod.params.rate === r.v ? '#FFCC00' : '#222', color: mod.params.rate === r.v ? '#000' : '#fff', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px', borderRadius: '4px' }}>{r.l}</div>
                                                 ))}
                                             </div>
@@ -1984,7 +1984,7 @@ function App() {
                                                 </div>
                                                 <div className="preset-grid">
                                                     {window.FX_PRESETS['FX_OTT'].map(p => (
-                                                        <div key={p.name} className="preset-option" onClick={() => { Object.entries(p.params).forEach(([k,v]) => updateParam(fx.id, k, v)); updateParam(fx.id, 'showPresets', false); }}>{p.name}</div>
+                                                        <div key={p.name} className="preset-option" onClick={() => { Object.entries(p.params).forEach(([k, v]) => updateParam(fx.id, k, v)); updateParam(fx.id, 'showPresets', false); }}>{p.name}</div>
                                                     ))}
                                                 </div>
                                             </div>
@@ -2067,7 +2067,7 @@ function App() {
                                                 </div>
                                                 <div className="fx-step-grid prob-bars" style={{ display: 'flex', gap: '4px', height: '40px', alignItems: 'flex-end' }}>
                                                     {(mod.params.stepsProb || Array(16).fill(0.8)).map((p, idx) => (
-                                                        <div key={idx} 
+                                                        <div key={idx}
                                                             onPointerDown={(e) => {
                                                                 e.stopPropagation();
                                                                 const rect = e.currentTarget.parentElement.getBoundingClientRect();
@@ -2081,13 +2081,13 @@ function App() {
                                                                 window.addEventListener('pointermove', update); window.addEventListener('pointerup', up);
                                                                 update(e);
                                                             }}
-                                                            style={{ 
-                                                                flex: 1, 
-                                                                height: `${p * 100}%`, 
+                                                            style={{
+                                                                flex: 1,
+                                                                height: `${p * 100}%`,
                                                                 background: mod.state.step === idx ? '#FFF' : `rgba(247, 142, 30, ${0.2 + p * 0.8})`,
                                                                 borderRadius: '1px',
                                                                 transition: 'height 0.1s ease, background 0.1s ease'
-                                                            }} 
+                                                            }}
                                                         />
                                                     ))}
                                                 </div>
@@ -2154,11 +2154,11 @@ function App() {
                             return (
                                 <window.DraggableWindow key={ac.id} id={ac.id} title="4742 PHOTOSYNTH" color={ac.mClr} initialX={ac.x} initialY={ac.y} onClose={() => removeModule(ac.id, true)} onDuplicate={() => duplicateModule(ac.id)} onCopy={() => copyParams(ac.id)} onPaste={() => pasteParams(ac.id)} onMutate={() => mutateParams(ac.id)} onDrag={handleModuleDrag}>
                                     <div className="synth-layout" style={{ minWidth: '400px' }}>
-                                        
+
                                         {/* TAB NAVIGATION */}
                                         <div className="synth-tab-bar">
                                             {['ENGINE', 'FILTER', 'VOICING', 'MOD'].map(tab => (
-                                                <div key={tab} 
+                                                <div key={tab}
                                                     className={`synth-tab ${mod.params.activeTab === tab ? 'active' : ''}`}
                                                     onPointerDown={(e) => { e.stopPropagation(); updateParam(ac.id, 'activeTab', tab); }}
                                                 >
@@ -2377,11 +2377,11 @@ function App() {
                                 </window.DraggableWindow>
                             );
                         })}
-                        </div>
-                    </>
-                )}
-            </div>
-        );
+                    </div>
+                </>
+            )}
+        </div>
+    );
 }
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
