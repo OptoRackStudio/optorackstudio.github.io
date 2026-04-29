@@ -298,7 +298,7 @@ const LobbyScreen = ({ onStart, savedProjects = [], onLoadProject }) => {
                 .pane-title { margin: 0 0 10px 0; font-size: 1.8rem; font-weight: 900; letter-spacing: 2px; color: #fff; }
                 .pane-desc { font-size: 0.8rem; color: #999; line-height: 1.6; margin-bottom: 30px; max-width: 450px; font-weight: 500; }
                 
-                .hero-action { flex: 1; display: flex; align-items: center; justify-content: center; }
+                .hero-action { flex: 1; align-items: center; justify-content: center; }
                 .primary-glow-btn { 
                     background: #00E5FF; color: #000; border: none; padding: 20px 45px; 
                     font-size: 1rem; font-weight: 900; border-radius: 6px; cursor: pointer; 
