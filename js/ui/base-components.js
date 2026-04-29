@@ -150,6 +150,7 @@ const Knob = ({label, val = 0, min, max, step, def, onChange, onAssign, isAssign
 
 const ModuleJack = ({id, n, t=false, type="cv", active=false, patchedColor, domReg, onDown, onUp, onDoubleClick }) => {
     const innerColor = active ? (patchedColor || (type === 'audio' ? '#00E5FF' : '#F78E1E')) : '#111';
+    const glow = active ? `0 0 15px ${innerColor}, inset 0 0 5px rgba(255,255,255,0.5)` : 'none';
     
     // Persistent random tilt for hardware realism
     const tilt = useMemo(() => ({
@@ -160,7 +161,7 @@ const ModuleJack = ({id, n, t=false, type="cv", active=false, patchedColor, domR
     return (
         <div className="jack-container" style={{justifyContent: t?'flex-start':'flex-end'}}>
            {!t && <div className="jack-label" style={{marginRight: '12px'}}>{n}</div>}
-           <div className="jack-wrapper" onPointerDown={onDown} onPointerUp={onUp} onDoubleClick={onDoubleClick}>
+           <div className="jack-wrapper" onPointerDown={onDown} onPointerUp={onUp} onDoubleClick={onDoubleClick} style={{ perspective: '500px' }}>
                <div className="jack-housing" style={{ transform: `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)` }}>
                    <div className="jack-rim" />
                    <div className="jack-hole" ref={(el) => { 
@@ -171,11 +172,14 @@ const ModuleJack = ({id, n, t=false, type="cv", active=false, patchedColor, domR
                            if (el) window.OptoRackJacks[key] = el;
                            else delete window.OptoRackJacks[key];
                        }
+                   }} style={{ 
+                       background: active ? `radial-gradient(circle at center, ${innerColor} 0%, #000 80%)` : '#080808',
+                       boxShadow: glow 
                    }}>
                        <div className="jack-inner-barrel" />
-                       <div className={`jack-contact-point ${active ? 'jack-active-glow' : ''}`} style={{ 
-                           backgroundColor: active ? (patchedColor || (type === 'audio' ? '#00E5FF' : '#F78E1E')) : '#000',
-                           boxShadow: active ? `inset 0 0 5px rgba(0,0,0,0.5), 0 0 10px ${active ? (patchedColor || (type === 'audio' ? '#00E5FF' : '#F78E1E')) : 'transparent'}` : 'inset 0 0 5px rgba(0,0,0,0.8)',
+                       <div className="jack-glow-point" style={{ 
+                           backgroundColor: active ? '#FFF' : 'transparent',
+                           opacity: active ? 1 : 0 
                        }} />
                    </div>
                </div>
@@ -206,23 +210,16 @@ const DraggableWindow = ({ id, title, color, initialX, initialY, initialW, initi
                 h: size.current.h || winRef.current?.offsetHeight || 0 
             }),
             getWorldPortPos: (portId, isInput) => {
+                // If we have the direct element from our global registry, use its actual screen position
                 const jackEl = window.OptoRackJacks && window.OptoRackJacks[`${id}_${portId}`];
-                if (jackEl && winRef.current) {
-                    // Calculate relative offset from module container top-left
-                    const modRect = winRef.current.getBoundingClientRect();
-                    const jackRect = jackEl.getBoundingClientRect();
-                    
-                    // The scale of the module in screen space
-                    const s = modRect.width / winRef.current.offsetWidth;
-                    
-                    // Offset in "design pixels" (unscaled)
-                    const ox = (jackRect.left + jackRect.width / 2 - modRect.left) / s;
-                    const oy = (jackRect.top + jackRect.height / 2 - modRect.top) / s;
-                    
-                    return { x: pos.current.x + ox, y: pos.current.y + oy, isAbsolute: !!isFixed }; 
+                if (jackEl) {
+                    const r = jackEl.getBoundingClientRect();
+                    // Map screen coords back to "world" space (relative to world container)
+                    // This is handled by render loop, so just provide absolute center for now
+                    return { x: r.left + r.width / 2, y: r.top + r.height / 2, isAbsolute: true };
                 }
-                // Fallback
-                return { x: pos.current.x + 50, y: pos.current.y + 50, isAbsolute: false }; 
+                // Fallback to approximate position relative to module
+                return { x: pos.current.x + 50, y: pos.current.y + 50 }; 
             }
         };
         return () => { delete window.moduleControllers[id]; };
