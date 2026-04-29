@@ -90,7 +90,7 @@ const LobbyScreen = ({ onStart, savedProjects = [], onLoadProject }) => {
 
                 <div className="lobby-sidebar glass-panel">
                     <div className="lobby-logo">
-                        OPTO<span className="cyan">RACK</span>
+                        OPTO<span className="cyan">RACK DEMO</span>
                         <div className="logo-sub">STUDIO_DEMO</div>
                     </div>
                     <div className="nav-group">
