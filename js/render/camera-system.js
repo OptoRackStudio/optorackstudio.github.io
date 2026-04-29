@@ -8,7 +8,7 @@
  */
 
 window.OptoRackCamera = {
-    
+
     // ── INTERACTIVE CAMERA CONTROLS ────────────────────────────────────────────
 
     initPanControls: (canvas, cam) => {
@@ -54,11 +54,11 @@ window.OptoRackCamera = {
         canvas.addEventListener('wheel', (e) => {
             if (e.ctrlKey) {
                 e.preventDefault();
-                
+
                 const zoomSensitivity = 0.001;
                 const zoomDelta = -e.deltaY * zoomSensitivity;
                 const prevTz = cam.tz || 1;
-                
+
                 // Clamp zoom between 0.1x and 5.0x
                 let newTz = Math.min(Math.max(0.1, prevTz + zoomDelta), 5);
 
@@ -76,23 +76,23 @@ window.OptoRackCamera = {
     },
 
     // ── SMART SPAWN POSITION ───────────────────────────────────────────────────
-    
+
     getSpawnPosition: (cam, modW, modH, startX, startY) => {
         const tx = cam.tx, ty = cam.ty, tz = cam.tz || 1;
         const W = window.innerWidth, H = window.innerHeight;
-        
-        // Safety Buffers (Avoid UI Panels)
-        const PAD_TOP    = 110;
-        const PAD_RIGHT  = 280;
-        const PAD_BOTTOM = 90;
-        const PAD_LEFT   = 400;
 
-        const sL = PAD_LEFT,    sR = W - PAD_RIGHT;
-        const sT = PAD_TOP,     sB = H - PAD_BOTTOM;
+        // Safety Buffers (Avoid UI Panels)
+        const PAD_TOP = 110;
+        const PAD_RIGHT = 280;
+        const PAD_BOTTOM = 90;
+        const PAD_LEFT = 400;
+
+        const sL = PAD_LEFT, sR = W - PAD_RIGHT;
+        const sT = PAD_TOP, sB = H - PAD_BOTTOM;
 
         // Screen -> World conversion
-        const wL = (sL - tx) / tz,  wR = (sR - tx) / tz;
-        const wT = (sT - ty) / tz,  wB = (sB - ty) / tz;
+        const wL = (sL - tx) / tz, wR = (sR - tx) / tz;
+        const wT = (sT - ty) / tz, wB = (sB - ty) / tz;
 
         const cx = (wL + wR) / 2;
         const cy = (wT + wB) / 2;
@@ -108,10 +108,10 @@ window.OptoRackCamera = {
             .map(c => c.getWorldRect ? c.getWorldRect() : null).filter(Boolean);
 
         const overlaps = (cx2, cy2) => rects.some(r =>
-            cx2        < r.x + r.w + 20 &&
-            cx2 + modW > r.x       - 20 &&
-            cy2        < r.y + r.h + 20 &&
-            cy2 + modH > r.y       - 20
+            cx2 < r.x + r.w + 20 &&
+            cx2 + modW > r.x - 20 &&
+            cy2 < r.y + r.h + 20 &&
+            cy2 + modH > r.y - 20
         );
 
         const inBounds = (cx2, cy2) => (
@@ -150,7 +150,7 @@ window.OptoRackCamera = {
 
     focusOnSpawn: (cam, spawnX, spawnY, modW, modH) => {
         if (!cam) return;
-        
+
         const W = window.innerWidth, H = window.innerHeight;
         const PAD_TOP = 110, PAD_RIGHT = 280, PAD_BOTTOM = 90, PAD_LEFT = 400;
         const sL = PAD_LEFT, sR = W - PAD_RIGHT, sT = PAD_TOP, sB = H - PAD_BOTTOM;
