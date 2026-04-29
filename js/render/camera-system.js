@@ -8,7 +8,7 @@
  */
 
 window.OptoRackCamera = {
-
+    
     // ── INTERACTIVE CAMERA CONTROLS ────────────────────────────────────────────
 
     initPanControls: (canvas, cam) => {
@@ -54,11 +54,11 @@ window.OptoRackCamera = {
         canvas.addEventListener('wheel', (e) => {
             if (e.ctrlKey) {
                 e.preventDefault();
-
+                
                 const zoomSensitivity = 0.001;
                 const zoomDelta = -e.deltaY * zoomSensitivity;
                 const prevTz = cam.tz || 1;
-
+                
                 // Clamp zoom between 0.1x and 5.0x
                 let newTz = Math.min(Math.max(0.1, prevTz + zoomDelta), 5);
 
@@ -75,10 +75,85 @@ window.OptoRackCamera = {
         }, { passive: false });
     },
 
+<<<<<<< HEAD
+=======
+    // ── SMART SPAWN POSITION ───────────────────────────────────────────────────
+    
+    getSpawnPosition: (cam, modW, modH, startX, startY) => {
+        const tx = cam.tx, ty = cam.ty, tz = cam.tz || 1;
+        const W = window.innerWidth, H = window.innerHeight;
+        
+        // Safety Buffers (Avoid UI Panels)
+        const PAD_TOP    = 110;
+        const PAD_RIGHT  = 280;
+        const PAD_BOTTOM = 90;
+        const PAD_LEFT   = 400;
+
+        const sL = PAD_LEFT,    sR = W - PAD_RIGHT;
+        const sT = PAD_TOP,     sB = H - PAD_BOTTOM;
+
+        // Screen -> World conversion
+        const wL = (sL - tx) / tz,  wR = (sR - tx) / tz;
+        const wT = (sT - ty) / tz,  wB = (sB - ty) / tz;
+
+        const cx = (wL + wR) / 2;
+        const cy = (wT + wB) / 2;
+
+        const originX = (startX !== undefined) ? startX : cx - modW / 2;
+        const originY = (startY !== undefined) ? startY : cy - modH / 2;
+
+        const SNAP = 40;
+        const stepX = Math.max(Math.ceil((modW + 20) / SNAP) * SNAP, 80);
+        const stepY = Math.max(Math.ceil((modH + 20) / SNAP) * SNAP, 80);
+
+        const rects = Object.values(window.moduleControllers || {})
+            .map(c => c.getWorldRect ? c.getWorldRect() : null).filter(Boolean);
+
+        const overlaps = (cx2, cy2) => rects.some(r =>
+            cx2        < r.x + r.w + 20 &&
+            cx2 + modW > r.x       - 20 &&
+            cy2        < r.y + r.h + 20 &&
+            cy2 + modH > r.y       - 20
+        );
+
+        const inBounds = (cx2, cy2) => (
+            cx2 >= wL &&
+            cx2 + modW <= wR &&
+            cy2 >= wT &&
+            cy2 + modH <= wB
+        );
+
+        const MAX_RINGS = 10;
+        for (let ring = 0; ring <= MAX_RINGS; ring++) {
+            const candidates = [];
+            if (ring === 0) {
+                candidates.push([originX, originY]);
+            } else {
+                for (let dx = -ring; dx <= ring; dx++) {
+                    for (let dy = -ring; dy <= ring; dy++) {
+                        if (Math.abs(dx) === ring || Math.abs(dy) === ring) {
+                            candidates.push([originX + dx * stepX, originY + dy * stepY]);
+                        }
+                    }
+                }
+                candidates.sort((a, b) => Math.hypot(a[0] - originX, a[1] - originY) - Math.hypot(b[0] - originX, b[1] - originY));
+            }
+            for (const [px, py] of candidates) {
+                const snapped = [Math.round(px / SNAP) * SNAP, Math.round(py / SNAP) * SNAP];
+                if (!overlaps(snapped[0], snapped[1])) {
+                    if (inBounds(snapped[0], snapped[1]) || ring > 4) return { x: snapped[0], y: snapped[1] };
+                }
+            }
+        }
+
+        const maxY = rects.reduce((m, r) => Math.max(m, r.y + r.h), originY);
+        return { x: Math.round(originX / SNAP) * SNAP, y: Math.round((maxY + 40) / SNAP) * SNAP };
+    },
+>>>>>>> parent of c440434 (Update camera-system.js)
 
     focusOnSpawn: (cam, spawnX, spawnY, modW, modH) => {
         if (!cam) return;
-
+        
         const W = window.innerWidth, H = window.innerHeight;
         const PAD_TOP = 110, PAD_RIGHT = 280, PAD_BOTTOM = 90, PAD_LEFT = 400;
         const sL = PAD_LEFT, sR = W - PAD_RIGHT, sT = PAD_TOP, sB = H - PAD_BOTTOM;

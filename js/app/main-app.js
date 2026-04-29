@@ -167,7 +167,6 @@ function App() {
         }
     ]);
     const [tipIndex, setTipIndex] = useState(0);
-    const [uiVisible, setUiVisible] = useState(true);
 
     const [playersList, setPlayersList] = useState([]);
     const [permissions, setPermissions] = useState({ canPatch: true, canTweak: true });
@@ -256,28 +255,11 @@ function App() {
         if (noteSelector) noteSelector.addEventListener('change', onNoteChange);
         if (scaleSelector) scaleSelector.addEventListener('change', onScaleChange);
 
-        const onKeyDown = (e) => {
-            if (e.key.toLowerCase() === 'h' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
-                setUiVisible(v => !v);
-            }
-        };
-        window.addEventListener('keydown', onKeyDown);
-
         return () => {
             if (noteSelector) noteSelector.removeEventListener('change', onNoteChange);
             if (scaleSelector) scaleSelector.removeEventListener('change', onScaleChange);
-            window.removeEventListener('keydown', onKeyDown);
         };
     }, []);
-
-    useEffect(() => {
-        if (viewMode === 'SLEEP') {
-            document.body.classList.add('sleep-active');
-        } else {
-            document.body.classList.remove('sleep-active');
-        }
-    }, [viewMode]);
-
     useEffect(() => {
         const tips = (window.AppTips && window.AppTips.items) || [];
         const tipCount = tips.length || 1;
@@ -769,10 +751,6 @@ function App() {
             : window.SpawnManager.getSpawnPosition(camRef.current, initialW, initialH);
 
         setSynths(p => [...p, { id: modId, type: 'SYNTH', x: slotPos.x, y: slotPos.y, w: initialW, h: initialH, mClr: synthClr }]);
-        
-        // Ensure new synth is immediately active for background visuals
-        sharedStateRef.current.activeSynthId = modId;
-        sharedStateRef.current.synthParams = newN.params;
 
         if (!hasOffset) window.OptoRackCamera.focusOnSpawn(camRef.current, slotPos.x, slotPos.y, initialW, initialH);
 
@@ -805,26 +783,7 @@ function App() {
         delete cDsp.current.modules[modId];
         if (window.moduleControllers) delete window.moduleControllers[modId];
 
-        if (isSynth) {
-            setSynths(p => {
-                const next = p.filter(a => a.id !== modId);
-                // If we deleted the active synth, pick the first remaining one
-                if (sharedStateRef.current.activeSynthId === modId) {
-                    const nextSynth = next[0];
-                    if (nextSynth) {
-                        sharedStateRef.current.activeSynthId = nextSynth.id;
-                        const mod = cDsp.current.modules[nextSynth.id];
-                        if (mod) sharedStateRef.current.synthParams = mod.params;
-                    } else {
-                        sharedStateRef.current.activeSynthId = null;
-                        sharedStateRef.current.synthParams = null;
-                    }
-                }
-                return next;
-            });
-        } else {
-            setFxModules(p => p.filter(a => a.id !== modId));
-        }
+        if (isSynth) setSynths(p => p.filter(a => a.id !== modId)); else setFxModules(p => p.filter(a => a.id !== modId));
         broadcastStructuralChange();
     };
 
@@ -1437,18 +1396,6 @@ function App() {
 
                             <div className="top-bar-right">
                                 <div className="glass-panel session-mgnt">
-                                    <button onClick={() => setUiVisible(!uiVisible)} className="top-btn" title="Toggle UI (Shortcut: H)">
-                                        {uiVisible ? 'HIDE UI' : 'SHOW UI'}
-                                    </button>
-                                    <div className="divider" />
-                                    <button onClick={() => {
-                                        const nextMode = viewMode === 'SLEEP' ? 'PATCHING' : 'SLEEP';
-                                        setViewMode(nextMode);
-                                        sharedStateRef.current.viewMode = nextMode;
-                                    }} className="top-btn" title="Sleep Mode (Performance Optimization)">
-                                        {viewMode === 'SLEEP' ? 'WAKE UP' : 'SLEEP MODE'}
-                                    </button>
-                                    <div className="divider" />
                                     {networkMode === 'OFFLINE' && (
                                         <>
                                             <button onClick={async () => {
