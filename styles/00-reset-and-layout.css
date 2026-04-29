@@ -143,3 +143,37 @@ html {
 			rgba(0, 0, 0, 0.5) 100%);
 }
 
+/* Mobile & Portrait Optimizations */
+@media (max-width: 1080px), (orientation: portrait) {
+	:root {
+		--panel-bg: rgba(10, 11, 14, 0.95); /* More solid for mobile readability */
+	}
+
+	.app-ui-layer {
+		transform: scale(1.0); /* Keep UI 1:1 on mobile or scale if needed */
+	}
+
+	/* Force background to fill even on tall screens */
+	.webgl-container, .video-feed {
+		transform: scale(1.5) translateZ(0);
+	}
+}
+
+/* Sleep Mode Overlay */
+.sleep-overlay {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background: radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.8) 100%);
+	pointer-events: none;
+	z-index: 999999;
+	opacity: 0;
+	transition: opacity 2s ease;
+}
+
+.sleep-active .sleep-overlay {
+	opacity: 1;
+}
+

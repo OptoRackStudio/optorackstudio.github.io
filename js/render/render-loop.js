@@ -106,7 +106,13 @@ window.OptoRackRenderLoop = class {
         });
 
         // ── CABLE PHYSICS & DRAWING ──────────────────────────────────────────
-        this.drawCables(fgCtx, cw, ch, dpr, cablesRef, camRef.current, disruptCursor.current);
+        // Only draw cables if UI is visible or not in SLEEP mode
+        const viewMode = sharedStateRef.current.viewMode || "PATCHING";
+        if (viewMode !== "SLEEP") {
+            this.drawCables(fgCtx, cw, ch, dpr, cablesRef, camRef.current, disruptCursor.current);
+        } else {
+            fgCtx.clearRect(0, 0, cw, ch);
+        }
     }
 
     processLuma(scanCanvas, vRef, DW, DH) {
@@ -287,13 +293,14 @@ window.OptoRackRenderLoop = class {
         if (!window.moduleControllers) return;
 
         const dt = 1 / 60;
-        const gravity = 0.5;
-        const stiffness = 0.8;
-        const segments = 14;
+        const gravity = 0.65; // Slightly stronger gravity for realism
+        const stiffness = 0.9; // Higher stiffness for better tension
+        const segments = 16; // More segments for smoother curves
+        const airResistance = 0.97;
 
         cablesRef.current.forEach(c => {
             if (!c._physics) {
-                c._physics = Array.from({ length: segments }, () => ({ x: 0, y: 0, oldX: 0, oldY: 0 }));
+                c._physics = Array.from({ length: segments }, () => ({ x: 0, y: 0, oldX: 0, oldY: 0, vx: 0, vy: 0 }));
                 c._init = false;
             }
 
@@ -307,6 +314,11 @@ window.OptoRackRenderLoop = class {
             const p1 = srcWorld.isAbsolute ? { x: srcWorld.x, y: srcWorld.y } : { x: srcWorld.x * cam.z + cam.x, y: srcWorld.y * cam.z + cam.y };
             const p2 = destWorld.isAbsolute ? { x: destWorld.x, y: destWorld.y } : { x: destWorld.x * cam.z + cam.x, y: destWorld.y * cam.z + cam.y };
 
+            // Distance based tension
+            const distTotal = Math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2);
+            const relaxedLen = distTotal * 1.2;
+            const segmentLen = relaxedLen / (segments - 1);
+
             if (!c._init) {
                 c._physics.forEach((p, i) => {
                     const ratio = i / (segments - 1);
@@ -316,93 +328,116 @@ window.OptoRackRenderLoop = class {
                 c._init = true;
             }
 
+            // Verlet Integration with Interactivity
             c._physics.forEach((p, i) => {
-                if (i === 0) { p.x = p1.x; p.y = p1.y; return; }
-                if (i === segments - 1) { p.x = p2.x; p.y = p2.y; return; }
+                if (i === 0) {
+                    // Update velocity for swing effect on attachment
+                    p.vx = p1.x - p.x;
+                    p.vy = p1.y - p.y;
+                    p.x = p1.x; p.y = p1.y; 
+                    return; 
+                }
+                if (i === segments - 1) { 
+                    p.vx = p2.x - p.x;
+                    p.vy = p2.y - p.y;
+                    p.x = p2.x; p.y = p2.y; 
+                    return; 
+                }
 
-                const vx = (p.x - p.oldX) * 0.98;
-                const vy = (p.y - p.oldY) * 0.98;
+                const vx = (p.x - p.oldX) * airResistance;
+                const vy = (p.y - p.oldY) * airResistance;
 
                 p.oldX = p.x;
                 p.oldY = p.y;
                 p.x += vx;
                 p.y += vy + gravity;
 
+                // Mouse interaction (Wind/Push)
                 const dx = p.x - mouse.x;
                 const dy = p.y - mouse.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist < 80) {
-                    const force = (80 - dist) / 80;
+                const mDist = Math.sqrt(dx * dx + dy * dy);
+                if (mDist < 100 * cam.z) {
+                    const force = (1.0 - mDist / (100 * cam.z)) * 2.0;
                     p.x += dx * force * 0.1;
                     p.y += dy * force * 0.1;
                 }
             });
 
-            const targetLen = Math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2) / (segments - 1) * 1.1;
-            for (let r = 0; r < 5; r++) {
+            // Constraint satisfaction (multiple passes for stiffness)
+            for (let r = 0; r < 6; r++) {
                 for (let i = 0; i < segments - 1; i++) {
                     const a = c._physics[i];
                     const b = c._physics[i + 1];
                     const dx = b.x - a.x;
                     const dy = b.y - a.y;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-                    const diff = (targetLen - dist) / dist * stiffness;
-                    const offset = { x: dx * diff * 0.5, y: dy * diff * 0.5 };
-                    if (i > 0) { a.x -= offset.x; a.y -= offset.y; }
-                    if (i < segments - 2) { b.x += offset.x; b.y += offset.y; }
+                    const d = Math.sqrt(dx * dx + dy * dy);
+                    const diff = (segmentLen - d) / d;
+                    const ox = dx * diff * 0.5 * stiffness;
+                    const oy = dy * diff * 0.5 * stiffness;
+
+                    if (i > 0) { a.x -= ox; a.y -= oy; }
+                    if (i < segments - 2) { b.x += ox; b.y += oy; }
                 }
             }
 
+            // Render path
             ctx.beginPath();
             ctx.moveTo(c._physics[0].x, c._physics[0].y);
-            for (let i = 1; i < segments - 1; i++) {
+            for (let i = 1; i < segments - 2; i++) {
                 const xc = (c._physics[i].x + c._physics[i + 1].x) / 2;
                 const yc = (c._physics[i].y + c._physics[i + 1].y) / 2;
                 ctx.quadraticCurveTo(c._physics[i].x, c._physics[i].y, xc, yc);
             }
-            ctx.lineTo(c._physics[segments - 1].x, c._physics[segments - 1].y);
+            ctx.quadraticCurveTo(
+                c._physics[segments - 2].x, c._physics[segments - 2].y,
+                c._physics[segments - 1].x, c._physics[segments - 1].y
+            );
 
-            // Premium Glow & Connector Style
-            ctx.shadowBlur = 15 * cam.z;
-            ctx.shadowColor = 'rgba(0,0,0,0.5)';
-            ctx.strokeStyle = 'rgba(0,0,0,0.4)';
-            ctx.lineWidth = 7 * cam.z;
+            // Premium Visuals
+            const baseWidth = 5 * cam.z;
+            
+            // Outer shadow/glow
+            ctx.shadowBlur = 12 * cam.z;
+            ctx.shadowColor = 'rgba(0,0,0,0.4)';
+            ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+            ctx.lineWidth = baseWidth + 4;
             ctx.lineCap = 'round';
             ctx.stroke();
 
-            // The Core Wire
-            ctx.shadowBlur = 10 * cam.z;
+            // Core color
+            ctx.shadowBlur = 8 * cam.z;
             ctx.shadowColor = c.color;
             ctx.strokeStyle = c.color;
-            ctx.lineWidth = 4 * cam.z;
+            ctx.lineWidth = baseWidth;
             ctx.stroke();
 
-            // Inner Highlight / Pulse
+            // Internal Highlight Pulse
             ctx.shadowBlur = 0;
-            ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-            ctx.lineWidth = 1.2 * cam.z;
-            ctx.setLineDash([15, 25]);
-            ctx.lineDashOffset = -(performance.now() / 40) % 40;
+            ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+            ctx.lineWidth = 1.5 * cam.z;
+            ctx.setLineDash([20, 30]);
+            ctx.lineDashOffset = -(performance.now() / 30) % 50;
             ctx.stroke();
             ctx.setLineDash([]);
 
-            // Draw Plug Connectors
+            // Plug Caps
             [c._physics[0], c._physics[segments - 1]].forEach((p, idx) => {
-                ctx.fillStyle = '#222';
-                ctx.strokeStyle = idx === 0 ? '#666' : '#888';
+                ctx.fillStyle = '#111';
+                ctx.strokeStyle = '#444';
                 ctx.lineWidth = 1 * cam.z;
                 ctx.beginPath();
-                ctx.arc(p.x, p.y, 5 * cam.z, 0, Math.PI * 2);
+                ctx.arc(p.x, p.y, 6 * cam.z, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.stroke();
-                // Inner pin
+                
                 ctx.fillStyle = c.color;
                 ctx.beginPath();
-                ctx.arc(p.x, p.y, 2 * cam.z, 0, Math.PI * 2);
+                ctx.arc(p.x, p.y, 2.5 * cam.z, 0, Math.PI * 2);
                 ctx.fill();
             });
         });
 
+        // Dragging cable
         const drag = this.config.disruptCursor.current;
         const dragRef = this.config.dragCableRef?.current || window._dragCableRef;
         if (drag.down && dragRef) {
@@ -416,13 +451,15 @@ window.OptoRackRenderLoop = class {
 
                 ctx.beginPath();
                 ctx.moveTo(p1.x, p1.y);
-                const cp1 = { x: p1.x, y: p1.y + 100 * cam.z };
-                const cp2 = { x: p2.x, y: p2.y + 100 * cam.z };
+                const cp1 = { x: p1.x, y: p1.y + 120 * cam.z };
+                const cp2 = { x: p2.x, y: p2.y + 120 * cam.z };
                 ctx.bezierCurveTo(cp1.x, cp1.y, cp2.x, cp2.y, p2.x, p2.y);
                 const wCol = (this.config.wireColor && this.config.wireColor.current) ? this.config.wireColor.current : (this.config.wireColor || window._activeWireColor || '#FFF');
                 ctx.strokeStyle = wCol;
                 ctx.lineWidth = 4 * cam.z;
                 ctx.lineCap = 'round';
+                ctx.shadowBlur = 10 * cam.z;
+                ctx.shadowColor = wCol;
                 ctx.stroke();
             }
         }
