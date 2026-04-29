@@ -190,7 +190,17 @@ function App() {
     const scaleRef = useRef('MINOR');
     const rootNoteRef = useRef('C');
 
-    const sharedStateRef = useRef({ scanX: 0, synthParams: null, pixels: null, activeSynthId: null });
+    const sharedStateRef = useRef({ 
+        scanX: 0, 
+        synthParams: null, 
+        pixels: null, 
+        activeSynthId: null,
+        uiVisible: uiVisible,
+        viewMode: viewMode
+    });
+
+    useEffect(() => { sharedStateRef.current.uiVisible = uiVisible; }, [uiVisible]);
+    useEffect(() => { sharedStateRef.current.viewMode = viewMode; }, [viewMode]);
 
     const vRef = useRef(null);
     const canvasFg = useRef(null);
@@ -1308,7 +1318,7 @@ function App() {
     };
 
     return (
-        <div className="app-container" onWheel={handleWheel}>
+        <div className={`app-container ${!uiVisible ? 'ui-hidden' : ''} ${viewMode === 'SLEEP' ? 'sleep-active' : ''}`} onWheel={handleWheel}>
 
             {/* Visible Webcam Feed in Background */}
             <video ref={vRef} id="video-feed" className="video-feed" playsInline autoPlay muted
@@ -1342,29 +1352,28 @@ function App() {
             {viewMode === "SLEEP" && networkMode !== 'MENU' && (
                 <div className="sleep-overlay">
                     <div className="glass-panel sleep-panel">
-                        <h2 className="sleep-title">OPTORACK - DEMO <span style={{ color: '#00E5FF', fontWeight: 'bold' }}>PRO</span></h2>
+                        <h2 className="sleep-title">OPTO<span style={{ color: '#00E5FF' }}>RACK</span> STANDBY</h2>
                         <p className="sleep-text">
-                            <b>EPILEPSY WARNING </b><br />
-                            Please ensure all optical sensors are calibrated.<br />
-                            Patching cables may result in unexpected resonance.
+                            <b>SYSTEM_STANDBY_PROTOCOL</b><br />
+                            Visual engine reduced for optimal efficiency.<br />
+                            Audio processing remains active.
                         </p>
-                        <div className="sleep-startup-config" onPointerDown={(e) => e.stopPropagation()}>
-                            <div className="sleep-config-label">STARTUP RESOLUTION PRESET</div>
-                            <select value={startupResolutionProfile} onChange={(e) => setStartupResolutionProfile(e.target.value)} style={{ minWidth: '240px' }}>
-                                {window.OptoRackResolution.getOptions().map(r => <option key={r} value={r}>{window.OptoRackResolution.profiles[r].label}</option>)}
-                            </select>
-                            <div className="sleep-config-note">Higher presets improve visual clarity and reduce noise, with more CPU/GPU cost.</div>
-                        </div>
-                        <div className="sleep-start-btn" onClick={() => INIT_MOTHER_SYSTEM(networkMode)}>
-                            [ INITIATE TEST SEQUENCE ]
+                        <div className="sleep-start-btn" onClick={() => setViewMode('PATCHING')}>
+                            [ INITIATE_WAKE_SEQUENCE ]
                         </div>
                     </div>
                 </div>
             )}
 
+            {!uiVisible && viewMode === 'PATCHING' && (
+                <div className="ui-hidden-btn" onClick={() => setUiVisible(true)}>
+                    UI
+                </div>
+            )}
+
             {viewMode === "PATCHING" && (
                 <>
-                    <div className="app-ui-layer" style={{ opacity: uiVisible ? 1 : 0, pointerEvents: uiVisible ? 'all' : 'none', transition: 'opacity 0.3s ease' }}>
+                    <div className="app-ui-layer">
 
                         <div className="top-bar">
                             <div className="top-bar-left">

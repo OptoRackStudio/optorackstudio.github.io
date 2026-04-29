@@ -150,7 +150,6 @@ const Knob = ({label, val = 0, min, max, step, def, onChange, onAssign, isAssign
 
 const ModuleJack = ({id, n, t=false, type="cv", active=false, patchedColor, domReg, onDown, onUp, onDoubleClick }) => {
     const innerColor = active ? (patchedColor || (type === 'audio' ? '#00E5FF' : '#F78E1E')) : '#111';
-    const glow = active ? `0 0 15px ${innerColor}, inset 0 0 5px rgba(255,255,255,0.5)` : 'none';
     
     // Persistent random tilt for hardware realism
     const tilt = useMemo(() => ({
@@ -161,7 +160,7 @@ const ModuleJack = ({id, n, t=false, type="cv", active=false, patchedColor, domR
     return (
         <div className="jack-container" style={{justifyContent: t?'flex-start':'flex-end'}}>
            {!t && <div className="jack-label" style={{marginRight: '12px'}}>{n}</div>}
-           <div className="jack-wrapper" onPointerDown={onDown} onPointerUp={onUp} onDoubleClick={onDoubleClick} style={{ perspective: '500px' }}>
+           <div className="jack-wrapper" onPointerDown={onDown} onPointerUp={onUp} onDoubleClick={onDoubleClick}>
                <div className="jack-housing" style={{ transform: `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)` }}>
                    <div className="jack-rim" />
                    <div className="jack-hole" ref={(el) => { 
@@ -172,14 +171,11 @@ const ModuleJack = ({id, n, t=false, type="cv", active=false, patchedColor, domR
                            if (el) window.OptoRackJacks[key] = el;
                            else delete window.OptoRackJacks[key];
                        }
-                   }} style={{ 
-                       background: active ? `radial-gradient(circle at center, ${innerColor} 0%, #000 80%)` : '#080808',
-                       boxShadow: glow 
                    }}>
                        <div className="jack-inner-barrel" />
-                       <div className="jack-glow-point" style={{ 
-                           backgroundColor: active ? '#FFF' : 'transparent',
-                           opacity: active ? 1 : 0 
+                       <div className={`jack-contact-point ${active ? 'jack-active-glow' : ''}`} style={{ 
+                           backgroundColor: active ? (patchedColor || (type === 'audio' ? '#00E5FF' : '#F78E1E')) : '#000',
+                           boxShadow: active ? `inset 0 0 5px rgba(0,0,0,0.5), 0 0 10px ${active ? (patchedColor || (type === 'audio' ? '#00E5FF' : '#F78E1E')) : 'transparent'}` : 'inset 0 0 5px rgba(0,0,0,0.8)',
                        }} />
                    </div>
                </div>
