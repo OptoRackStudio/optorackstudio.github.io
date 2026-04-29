@@ -10,7 +10,7 @@ const Minimap = ({ synths, fxModules, cam, onNavigate }) => {
 
     // Minimap configuration
     const mapSize = 200; // px
-    const worldSize = 15000; // Expanded virtual world size for unrestricted movement
+    const worldSize = 10000; // Match SpawnManager scale or logical world bounds
     const scale = mapSize / worldSize;
 
     const draw = () => {
@@ -28,7 +28,7 @@ const Minimap = ({ synths, fxModules, cam, onNavigate }) => {
         }
         ctx.stroke();
 
-        // Draw World Boundaries
+        // Draw World Boundaries (Center-relative)
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
         ctx.setLineDash([5, 5]);
         ctx.strokeRect(0, 0, mapSize, mapSize);
@@ -38,34 +38,47 @@ const Minimap = ({ synths, fxModules, cam, onNavigate }) => {
 
         // Draw Modules
         synths.forEach(s => {
+            const ctrl = window.moduleControllers && window.moduleControllers[s.id];
+            const rect = ctrl ? ctrl.getWorldRect() : { x: s.x, y: s.y };
+            
             ctx.fillStyle = '#00E5FF';
             ctx.shadowBlur = 5;
             ctx.shadowColor = '#00E5FF';
-            const x = (s.x + offset) * scale;
-            const y = (s.y + offset) * scale;
+            const x = (rect.x + offset) * scale;
+            const y = (rect.y + offset) * scale;
             ctx.fillRect(x - 2, y - 2, 4, 4);
         });
 
         fxModules.forEach(f => {
+            const ctrl = window.moduleControllers && window.moduleControllers[f.id];
+            const rect = ctrl ? ctrl.getWorldRect() : { x: f.x, y: f.y };
+
             ctx.fillStyle = '#FF00AA';
             ctx.shadowBlur = 5;
             ctx.shadowColor = '#FF00AA';
-            const x = (f.x + offset) * scale;
-            const y = (f.y + offset) * scale;
+            const x = (rect.x + offset) * scale;
+            const y = (rect.y + offset) * scale;
             ctx.fillRect(x - 2, y - 2, 4, 4);
         });
 
         // Draw Viewport Rect
-        const viewW = (window.innerWidth / cam.z) * scale;
-        const viewH = (window.innerHeight / cam.z) * scale;
-        const viewX = (-cam.x + offset) * scale - viewW / 2;
-        const viewY = (-cam.y + offset) * scale - viewH / 2;
+        // Camera space: screenX = worldX * tz + tx => worldX = (screenX - tx) / tz
+        // Viewport corners in world space:
+        const x1 = (-cam.x) / cam.tz;
+        const y1 = (-cam.y) / cam.tz;
+        const x2 = (window.innerWidth - cam.x) / cam.tz;
+        const y2 = (window.innerHeight - cam.y) / cam.tz;
+
+        const viewX = (x1 + offset) * scale;
+        const viewY = (y1 + offset) * scale;
+        const viewW = (x2 - x1) * scale;
+        const viewH = (y2 - y1) * scale;
 
         ctx.shadowBlur = 0;
         ctx.strokeStyle = '#fff';
         ctx.lineWidth = 1;
         ctx.strokeRect(viewX, viewY, viewW, viewH);
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
         ctx.fillRect(viewX, viewY, viewW, viewH);
     };
 
@@ -87,10 +100,16 @@ const Minimap = ({ synths, fxModules, cam, onNavigate }) => {
         const cx = Math.max(0, Math.min(mapSize, mouseX));
         const cy = Math.max(0, Math.min(mapSize, mouseY));
 
-        const targetX = -(cx / scale - offset);
-        const targetY = -(cy / scale - offset);
+        // Convert minimap pixel to world coordinate
+        const worldX = (cx / scale) - offset;
+        const worldY = (cy / scale) - offset;
 
-        onNavigate(targetX, targetY);
+        // Target: screen center maps to this world coordinate
+        // screenCX = worldX * tz + tx  =>  tx = screenCX - worldX * tz
+        const tx = (window.innerWidth / 2) - (worldX * cam.tz);
+        const ty = (window.innerHeight / 2) - (worldY * cam.tz);
+
+        onNavigate(tx, ty);
     };
 
     return (
@@ -105,7 +124,7 @@ const Minimap = ({ synths, fxModules, cam, onNavigate }) => {
                 onPointerLeave={() => setIsDragging(false)}
             />
             <div className="minimap-footer">
-                COORD: {Math.round(-cam.x)}, {Math.round(-cam.y)} // ZOOM: {cam.z.toFixed(2)}x
+                WORLD: {Math.round((-cam.tx)/cam.tz)}, {Math.round((-cam.ty)/cam.tz)} // ZOOM: {cam.tz.toFixed(2)}x
             </div>
 
             <style dangerouslySetInnerHTML={{__html: `

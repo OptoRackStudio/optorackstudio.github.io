@@ -210,16 +210,23 @@ const DraggableWindow = ({ id, title, color, initialX, initialY, initialW, initi
                 h: size.current.h || winRef.current?.offsetHeight || 0 
             }),
             getWorldPortPos: (portId, isInput) => {
-                // If we have the direct element from our global registry, use its actual screen position
                 const jackEl = window.OptoRackJacks && window.OptoRackJacks[`${id}_${portId}`];
-                if (jackEl) {
-                    const r = jackEl.getBoundingClientRect();
-                    // Map screen coords back to "world" space (relative to world container)
-                    // This is handled by render loop, so just provide absolute center for now
-                    return { x: r.left + r.width / 2, y: r.top + r.height / 2, isAbsolute: true };
+                if (jackEl && winRef.current) {
+                    // Calculate relative offset from module container top-left
+                    const modRect = winRef.current.getBoundingClientRect();
+                    const jackRect = jackEl.getBoundingClientRect();
+                    
+                    // The scale of the module in screen space
+                    const s = modRect.width / winRef.current.offsetWidth;
+                    
+                    // Offset in "design pixels" (unscaled)
+                    const ox = (jackRect.left + jackRect.width / 2 - modRect.left) / s;
+                    const oy = (jackRect.top + jackRect.height / 2 - modRect.top) / s;
+                    
+                    return { x: pos.current.x + ox, y: pos.current.y + oy, isAbsolute: !!isFixed }; 
                 }
-                // Fallback to approximate position relative to module
-                return { x: pos.current.x + 50, y: pos.current.y + 50 }; 
+                // Fallback
+                return { x: pos.current.x + 50, y: pos.current.y + 50, isAbsolute: false }; 
             }
         };
         return () => { delete window.moduleControllers[id]; };

@@ -411,7 +411,7 @@ window.OptoRackRenderLoop = class {
             if (ctrl) {
                 const portPos = ctrl.getWorldPortPos(d.portId, d.isInput);
                 if (!portPos) return;
-                const p1 = { x: portPos.x * cam.z + cam.x, y: portPos.y * cam.z + cam.y };
+                const p1 = portPos.isAbsolute ? { x: portPos.x, y: portPos.y } : { x: portPos.x * cam.z + cam.x, y: portPos.y * cam.z + cam.y };
                 const p2 = { x: mouse.x, y: mouse.y };
 
                 ctx.beginPath();
