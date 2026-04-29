@@ -143,6 +143,7 @@ html {
 			rgba(0, 0, 0, 0.5) 100%);
 }
 
+<<<<<<< HEAD
 /* Mobile & Portrait Optimizations (1080x1980 / 1980x1080) */
 @media (max-width: 1080px) {
 	:root {
@@ -277,3 +278,5 @@ html {
 	box-shadow: 0 0 20px rgba(0, 229, 255, 0.3);
 }
 
+=======
+>>>>>>> parent of 03d783b (22)

@@ -110,6 +110,7 @@ window.OptoRackRenderLoop = class {
                 this.processSynthDSP(dspObj, lumaMap, ctActx, beatDelta, cablesRef, DW, DH);
             });
 
+<<<<<<< HEAD
             // ── CABLE PHYSICS & DRAWING ──────────────────────────────────────────
             const viewMode = sharedStateRef.current.viewMode || "PATCHING";
             if (viewMode !== "SLEEP") {
@@ -120,6 +121,10 @@ window.OptoRackRenderLoop = class {
         } catch (err) {
             if (this.frameCount % 60 === 0) console.error("RenderLoop Tick Error:", err);
         }
+=======
+        // ── CABLE PHYSICS & DRAWING ──────────────────────────────────────────
+        this.drawCables(fgCtx, cw, ch, dpr, cablesRef, camRef.current, disruptCursor.current);
+>>>>>>> parent of 03d783b (22)
     }
 
     processLuma(scanCanvas, vRef, DW, DH) {
@@ -306,6 +311,7 @@ window.OptoRackRenderLoop = class {
         const gravity = 0.35;
         const airResistance = 0.98;
 
+<<<<<<< HEAD
         cables.forEach(c => {
             const sCtrl = window.moduleControllers && window.moduleControllers[c.srcMod];
             const dCtrl = window.moduleControllers && window.moduleControllers[c.destMod];
@@ -318,10 +324,35 @@ window.OptoRackRenderLoop = class {
             // Convert world to screen space
             const p1 = { x: p1World.x * cam.z + cam.x, y: p1World.y * cam.z + cam.y };
             const p2 = { x: p2World.x * cam.z + cam.x, y: p2World.y * cam.z + cam.y };
+=======
+        const dt = 1 / 60;
+        const gravity = 0.5;
+        const stiffness = 0.8;
+        const segments = 14;
+>>>>>>> parent of 03d783b (22)
 
             if (!c._physics) {
+<<<<<<< HEAD
                 c._physics = [];
                 for (let i = 0; i < segments; i++) {
+=======
+                c._physics = Array.from({ length: segments }, () => ({ x: 0, y: 0, oldX: 0, oldY: 0 }));
+                c._init = false;
+            }
+
+            const srcCtrl = window.moduleControllers[c.srcMod];
+            const destCtrl = window.moduleControllers[c.destMod];
+            if (!srcCtrl || !destCtrl) return;
+
+            const srcWorld = srcCtrl.getWorldPortPos(c.srcPort, false);
+            const destWorld = destCtrl.getWorldPortPos(c.destPort, true);
+
+            const p1 = srcWorld.isAbsolute ? { x: srcWorld.x, y: srcWorld.y } : { x: srcWorld.x * cam.z + cam.x, y: srcWorld.y * cam.z + cam.y };
+            const p2 = destWorld.isAbsolute ? { x: destWorld.x, y: destWorld.y } : { x: destWorld.x * cam.z + cam.x, y: destWorld.y * cam.z + cam.y };
+
+            if (!c._init) {
+                c._physics.forEach((p, i) => {
+>>>>>>> parent of 03d783b (22)
                     const ratio = i / (segments - 1);
                     c._physics.push({
                         x: p1.x + (p2.x - p1.x) * ratio,
@@ -333,25 +364,34 @@ window.OptoRackRenderLoop = class {
                 c._snapStartTime = time;
             }
 
+<<<<<<< HEAD
             const segmentLen = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2)) / (segments * 0.85);
             const snapAge = time - (c._snapStartTime || time);
             const snapForce = snapAge < 500 ? (1.0 - snapAge / 500) * 15.0 : 0;
 
             // Verlet Integration
+=======
+>>>>>>> parent of 03d783b (22)
             c._physics.forEach((p, i) => {
                 if (i === 0) { p.x = p1.x; p.y = p1.y; return; }
                 if (i === segments - 1) { p.x = p2.x; p.y = p2.y; return; }
 
+<<<<<<< HEAD
                 const vx = (p.x - p.oldX) * airResistance;
                 const vy = (p.y - p.oldY) * airResistance;
                 p.oldX = p.x; p.oldY = p.y;
                 p.x += vx; p.y += vy + gravity * cam.z;
+=======
+                const vx = (p.x - p.oldX) * 0.98;
+                const vy = (p.y - p.oldY) * 0.98;
+>>>>>>> parent of 03d783b (22)
 
                 if (snapForce > 0) {
                     p.x += (Math.random() - 0.5) * snapForce;
                     p.y += (Math.random() - 0.5) * snapForce;
                 }
 
+<<<<<<< HEAD
                 // Mouse Interaction
                 const dx = p.x - mouse.x; const dy = p.y - mouse.y;
                 const mDist = Math.sqrt(dx * dx + dy * dy);
@@ -433,6 +473,79 @@ window.OptoRackRenderLoop = class {
                 ctx.fillStyle = grad;
                 ctx.beginPath(); 
                 ctx.roundRect(-28 * z, -8 * z, 28 * z, 16 * z, 2 * z); 
+=======
+                const dx = p.x - mouse.x;
+                const dy = p.y - mouse.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < 80) {
+                    const force = (80 - dist) / 80;
+                    p.x += dx * force * 0.1;
+                    p.y += dy * force * 0.1;
+                }
+            });
+
+            const targetLen = Math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2) / (segments - 1) * 1.1;
+            for (let r = 0; r < 5; r++) {
+                for (let i = 0; i < segments - 1; i++) {
+                    const a = c._physics[i];
+                    const b = c._physics[i + 1];
+                    const dx = b.x - a.x;
+                    const dy = b.y - a.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const diff = (targetLen - dist) / dist * stiffness;
+                    const offset = { x: dx * diff * 0.5, y: dy * diff * 0.5 };
+                    if (i > 0) { a.x -= offset.x; a.y -= offset.y; }
+                    if (i < segments - 2) { b.x += offset.x; b.y += offset.y; }
+                }
+            }
+
+            ctx.beginPath();
+            ctx.moveTo(c._physics[0].x, c._physics[0].y);
+            for (let i = 1; i < segments - 1; i++) {
+                const xc = (c._physics[i].x + c._physics[i + 1].x) / 2;
+                const yc = (c._physics[i].y + c._physics[i + 1].y) / 2;
+                ctx.quadraticCurveTo(c._physics[i].x, c._physics[i].y, xc, yc);
+            }
+            ctx.lineTo(c._physics[segments - 1].x, c._physics[segments - 1].y);
+
+            // Premium Glow & Connector Style
+            ctx.shadowBlur = 15 * cam.z;
+            ctx.shadowColor = 'rgba(0,0,0,0.5)';
+            ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+            ctx.lineWidth = 7 * cam.z;
+            ctx.lineCap = 'round';
+            ctx.stroke();
+
+            // The Core Wire
+            ctx.shadowBlur = 10 * cam.z;
+            ctx.shadowColor = c.color;
+            ctx.strokeStyle = c.color;
+            ctx.lineWidth = 4 * cam.z;
+            ctx.stroke();
+
+            // Inner Highlight / Pulse
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+            ctx.lineWidth = 1.2 * cam.z;
+            ctx.setLineDash([15, 25]);
+            ctx.lineDashOffset = -(performance.now() / 40) % 40;
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Draw Plug Connectors
+            [c._physics[0], c._physics[segments - 1]].forEach((p, idx) => {
+                ctx.fillStyle = '#222';
+                ctx.strokeStyle = idx === 0 ? '#666' : '#888';
+                ctx.lineWidth = 1 * cam.z;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 5 * cam.z, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                // Inner pin
+                ctx.fillStyle = c.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 2 * cam.z, 0, Math.PI * 2);
+>>>>>>> parent of 03d783b (22)
                 ctx.fill();
 
                 // Color Code Ring (Emissive)
@@ -470,7 +583,10 @@ window.OptoRackRenderLoop = class {
             drawPlug(c._physics[segments - 1], c._physics[segments - 2]);
         });
 
+<<<<<<< HEAD
         // Dragging cable (The "Live" wire with Physics)
+=======
+>>>>>>> parent of 03d783b (22)
         const drag = this.config.disruptCursor.current;
         const dragRef = this.config.dragCableRef?.current || window._dragCableRef;
         
@@ -484,6 +600,7 @@ window.OptoRackRenderLoop = class {
                 const p2 = { x: mouse.x, y: mouse.y };
                 const z = cam.z;
 
+<<<<<<< HEAD
                 // Initialize Drag Physics
                 if (!this._dragPhysics) {
                     this._dragPhysics = [];
@@ -574,6 +691,18 @@ window.OptoRackRenderLoop = class {
                 ctx.beginPath(); ctx.roundRect(-36 * z, -3.5 * z, 12 * z, 7 * z, [3 * z, 0, 0, 3 * z]); ctx.fill();
                 
                 ctx.restore();
+=======
+                ctx.beginPath();
+                ctx.moveTo(p1.x, p1.y);
+                const cp1 = { x: p1.x, y: p1.y + 100 * cam.z };
+                const cp2 = { x: p2.x, y: p2.y + 100 * cam.z };
+                ctx.bezierCurveTo(cp1.x, cp1.y, cp2.x, cp2.y, p2.x, p2.y);
+                const wCol = (this.config.wireColor && this.config.wireColor.current) ? this.config.wireColor.current : (this.config.wireColor || window._activeWireColor || '#FFF');
+                ctx.strokeStyle = wCol;
+                ctx.lineWidth = 4 * cam.z;
+                ctx.lineCap = 'round';
+                ctx.stroke();
+>>>>>>> parent of 03d783b (22)
             }
         } else {
             this._dragPhysics = null;
