@@ -190,17 +190,7 @@ function App() {
     const scaleRef = useRef('MINOR');
     const rootNoteRef = useRef('C');
 
-    const sharedStateRef = useRef({ 
-        scanX: 0, 
-        synthParams: null, 
-        pixels: null, 
-        activeSynthId: null,
-        uiVisible: uiVisible,
-        viewMode: viewMode
-    });
-
-    useEffect(() => { sharedStateRef.current.uiVisible = uiVisible; }, [uiVisible]);
-    useEffect(() => { sharedStateRef.current.viewMode = viewMode; }, [viewMode]);
+    const sharedStateRef = useRef({ scanX: 0, synthParams: null, pixels: null, activeSynthId: null });
 
     const vRef = useRef(null);
     const canvasFg = useRef(null);
@@ -256,6 +246,8 @@ function App() {
         if (noteSelector) noteSelector.addEventListener('change', onNoteChange);
         if (scaleSelector) scaleSelector.addEventListener('change', onScaleChange);
 
+        if (scaleSelector) scaleSelector.addEventListener('change', onScaleChange);
+
         const onKeyDown = (e) => {
             if (e.key.toLowerCase() === 'h' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
                 setUiVisible(v => !v);
@@ -268,16 +260,8 @@ function App() {
             if (scaleSelector) scaleSelector.removeEventListener('change', onScaleChange);
             window.removeEventListener('keydown', onKeyDown);
         };
+        };
     }, []);
-
-    useEffect(() => {
-        if (viewMode === 'SLEEP') {
-            document.body.classList.add('sleep-active');
-        } else {
-            document.body.classList.remove('sleep-active');
-        }
-    }, [viewMode]);
-
     useEffect(() => {
         const tips = (window.AppTips && window.AppTips.items) || [];
         const tipCount = tips.length || 1;
@@ -1318,7 +1302,7 @@ function App() {
     };
 
     return (
-        <div className={`app-container ${!uiVisible ? 'ui-hidden' : ''} ${viewMode === 'SLEEP' ? 'sleep-active' : ''}`} onWheel={handleWheel}>
+        <div className="app-container" onWheel={handleWheel}>
 
             {/* Visible Webcam Feed in Background */}
             <video ref={vRef} id="video-feed" className="video-feed" playsInline autoPlay muted
@@ -1352,28 +1336,29 @@ function App() {
             {viewMode === "SLEEP" && networkMode !== 'MENU' && (
                 <div className="sleep-overlay">
                     <div className="glass-panel sleep-panel">
-                        <h2 className="sleep-title">OPTO<span style={{ color: '#00E5FF' }}>RACK</span> STANDBY</h2>
+                        <h2 className="sleep-title">OPTORACK - DEMO <span style={{ color: '#00E5FF', fontWeight: 'bold' }}>PRO</span></h2>
                         <p className="sleep-text">
-                            <b>SYSTEM_STANDBY_PROTOCOL</b><br />
-                            Visual engine reduced for optimal efficiency.<br />
-                            Audio processing remains active.
+                            <b>EPILEPSY WARNING </b><br />
+                            Please ensure all optical sensors are calibrated.<br />
+                            Patching cables may result in unexpected resonance.
                         </p>
-                        <div className="sleep-start-btn" onClick={() => setViewMode('PATCHING')}>
-                            [ INITIATE_WAKE_SEQUENCE ]
+                        <div className="sleep-startup-config" onPointerDown={(e) => e.stopPropagation()}>
+                            <div className="sleep-config-label">STARTUP RESOLUTION PRESET</div>
+                            <select value={startupResolutionProfile} onChange={(e) => setStartupResolutionProfile(e.target.value)} style={{ minWidth: '240px' }}>
+                                {window.OptoRackResolution.getOptions().map(r => <option key={r} value={r}>{window.OptoRackResolution.profiles[r].label}</option>)}
+                            </select>
+                            <div className="sleep-config-note">Higher presets improve visual clarity and reduce noise, with more CPU/GPU cost.</div>
+                        </div>
+                        <div className="sleep-start-btn" onClick={() => INIT_MOTHER_SYSTEM(networkMode)}>
+                            [ INITIATE TEST SEQUENCE ]
                         </div>
                     </div>
                 </div>
             )}
 
-            {!uiVisible && viewMode === 'PATCHING' && (
-                <div className="ui-hidden-btn" onClick={() => setUiVisible(true)}>
-                    UI
-                </div>
-            )}
-
             {viewMode === "PATCHING" && (
                 <>
-                    <div className="app-ui-layer">
+                    <div className="app-ui-layer" style={{ opacity: uiVisible ? 1 : 0, pointerEvents: uiVisible ? 'all' : 'none', transition: 'opacity 0.3s ease' }}>
 
                         <div className="top-bar">
                             <div className="top-bar-left">
@@ -1439,14 +1424,6 @@ function App() {
                                 <div className="glass-panel session-mgnt">
                                     <button onClick={() => setUiVisible(!uiVisible)} className="top-btn" title="Toggle UI (Shortcut: H)">
                                         {uiVisible ? 'HIDE UI' : 'SHOW UI'}
-                                    </button>
-                                    <div className="divider" />
-                                    <button onClick={() => {
-                                        const nextMode = viewMode === 'SLEEP' ? 'PATCHING' : 'SLEEP';
-                                        setViewMode(nextMode);
-                                        sharedStateRef.current.viewMode = nextMode;
-                                    }} className="top-btn" title="Sleep Mode (Performance Optimization)">
-                                        {viewMode === 'SLEEP' ? 'WAKE UP' : 'SLEEP MODE'}
                                     </button>
                                     <div className="divider" />
                                     {networkMode === 'OFFLINE' && (

@@ -1526,88 +1526,82 @@ const WebGLBackground = ({ videoRef, wireColor, sharedStateRef, visualTemplate =
             let animationId; const clock = new THREE.Clock();
 
             const animate = () => {
-                try {
-                    animationId = requestAnimationFrame(animate);
+                animationId = requestAnimationFrame(animate);
+                
+                if (camRef && camRef.current) {
+                    const c = camRef.current;
+                    const tx = typeof c.tx === 'number' ? c.tx : 0;
+                    const ty = typeof c.ty === 'number' ? c.ty : 0;
+                    const tz = typeof c.tz === 'number' ? c.tz : 1;
                     
-                    if (camRef && camRef.current) {
-                        const c = camRef.current;
-                        const tx = typeof c.tx === 'number' ? c.tx : 0;
-                        const ty = typeof c.ty === 'number' ? c.ty : 0;
-                        const tz = typeof c.tz === 'number' ? c.tz : 1;
-                        
-                        const targetX = -tx * 0.4;
-                        const targetY = ty * 0.4;
-                        const targetZ = 800 / tz;
-                        
-                        camera.position.x += (targetX - camera.position.x) * 0.1;
-                        camera.position.y += (targetY - camera.position.y) * 0.1;
-                        camera.position.z += (targetZ - camera.position.z) * 0.1;
-                        camera.lookAt(camera.position.x, camera.position.y, 0);
-                    }
-
-                    if (sharedStateRef.current) {
-                        const u = material.uniforms;
-                        if (u.uScanX) u.uScanX.value = sharedStateRef.current.scanX || 0;
-                        const p = sharedStateRef.current.synthParams;
-                        if (p && u) {
-                            if (u.uWarp) u.uWarp.value = p.warp || 0; if (u.uBend) u.uBend.value = p.bend || 0;
-                            if (u.uSym) u.uSym.value = p.sym || 0; if (u.uSync) u.uSync.value = p.sync || 1.0;
-                            if (u.uFormant) u.uFormant.value = p.formant || 1.0; if (u.uTimeScl) u.uTimeScl.value = p.timeScl || 1.0;
-                            if (u.uFreqScl) u.uFreqScl.value = p.freqScl || 1.0; if (u.uAmpScl) u.uAmpScl.value = p.ampScl || 1.0;
-                            if (u.uNoiseLvl) u.uNoiseLvl.value = p.noiseLvl || 0.0; if (u.uCrush) u.uCrush.value = p.crush || 0.0;
-                            if (u.uHarm) u.uHarm.value = p.harm || 1.0; if (u.uFmAmt) u.uFmAmt.value = p.fmAmt || 0.0;
-                            if (u.uLfoAmt) u.uLfoAmt.value = p.lfoAmt || 0.0;
-                        }
-                        if (material.userData.shader) {
-                            const s = material.userData.shader;
-                            if (p && s.uniforms.uAmpScl) s.uniforms.uAmpScl.value = p.ampScl || 1.0;
-                        }
-                        if (dataCanvas && sharedStateRef.current.pixels && sharedStateRef.current.pixels.length === DW * DH * 4) {
-                            const ctx = dataCanvas.getContext('2d'); 
-                            const imgData = new ImageData(sharedStateRef.current.pixels, DW, DH);
-                            ctx.putImageData(imgData, 0, 0); 
-                            dataTexture.needsUpdate = true;
-                        }
-                    }
+                    const targetX = -tx * 0.4;
+                    const targetY = ty * 0.4;
+                    const targetZ = 800 / tz;
                     
-                    const settings = settingsRef.current[visualTemplate];
-                    if (settings) {
-                        const u = material.uniforms;
-                        if (u.uElevationMult) u.uElevationMult.value = settings.elevationMultiplier;
-                        if (u.uSize) u.uSize.value = settings.size;
-                        if (u.uWaveCount) u.uWaveCount.value = settings.waveCount;
-                        if (u.uGlow) u.uGlow.value = settings.glowIntensity;
-                        if (u.uGlitchIntensity) u.uGlitchIntensity.value = settings.glitchIntensity;
-                        if (u.uPixelation) u.uPixelation.value = settings.pixelation;
-                        if (u.uViscosity) u.uViscosity.value = settings.viscosity;
-                        if (u.uSplash) u.uSplash.value = settings.splashForce;
-                        if (u.uFlow) u.uFlow.value = settings.flow || 1.0;
-                        if (u.uCamSens) u.uCamSens.value = settings.camSens || 1.0;
-                        if (u.uCamContrast) u.uCamContrast.value = settings.camContrast || 1.0;
-                        if (u.uCamFreq) u.uCamFreq.value = settings.camFreq || 1.0;
-                        if (u.uDepthScale) u.uDepthScale.value = settings.depthScale;
-                        if (u.uRoomFold) u.uRoomFold.value = settings.roomFold;
-                        if (u.uPointSize) u.uPointSize.value = settings.pointSize;
-                        if (u.uGhosting) u.uGhosting.value = settings.ghosting || 0.5;
-                        
-                        const currentBpm = (sharedStateRef.current && sharedStateRef.current.bpm) ? sharedStateRef.current.bpm : 120.0;
-                        const bpmMultiplier = currentBpm / 120.0;
-                        const delta = clock.getDelta() * (settings.speed !== undefined ? settings.speed : 1.0) * bpmMultiplier;
-                        if (u.uTime) u.uTime.value += delta;
-                        if (material.userData.shader) {
-                            const s = material.userData.shader;
-                            if (s.uniforms.uTime) s.uniforms.uTime.value += delta;
-                            if (s.uniforms.uDepthScale && settings.depthScale) s.uniforms.uDepthScale.value = settings.depthScale;
-                        }
-                    } else {
-                        const currentBpm = (sharedStateRef.current && sharedStateRef.current.bpm) ? sharedStateRef.current.bpm : 120.0;
-                        if (material.uniforms.uTime) material.uniforms.uTime.value += clock.getDelta() * (currentBpm / 120.0);
-                    }
-
-                    if (renderer) renderer.render(scene, camera);
-                } catch (e) {
-                    console.warn("WebGL Background frame skip:", e);
+                    camera.position.x += (targetX - camera.position.x) * 0.1;
+                    camera.position.y += (targetY - camera.position.y) * 0.1;
+                    camera.position.z += (targetZ - camera.position.z) * 0.1;
+                    camera.lookAt(camera.position.x, camera.position.y, 0);
                 }
+
+                if (sharedStateRef.current) {
+                    const u = material.uniforms;
+                    if (u.uScanX) u.uScanX.value = sharedStateRef.current.scanX;
+                    const p = sharedStateRef.current.synthParams;
+                    if (p) {
+                        if (u.uWarp) u.uWarp.value = p.warp || 0; if (u.uBend) u.uBend.value = p.bend || 0;
+                        if (u.uSym) u.uSym.value = p.sym || 0; if (u.uSync) u.uSync.value = p.sync || 1.0;
+                        if (u.uFormant) u.uFormant.value = p.formant || 1.0; if (u.uTimeScl) u.uTimeScl.value = p.timeScl || 1.0;
+                        if (u.uFreqScl) u.uFreqScl.value = p.freqScl || 1.0; if (u.uAmpScl) u.uAmpScl.value = p.ampScl || 1.0;
+                        if (u.uNoiseLvl) u.uNoiseLvl.value = p.noiseLvl || 0.0; if (u.uCrush) u.uCrush.value = p.crush || 0.0;
+                        if (u.uHarm) u.uHarm.value = p.harm || 1.0; if (u.uFmAmt) u.uFmAmt.value = p.fmAmt || 0.0;
+                        if (u.uLfoAmt) u.uLfoAmt.value = p.lfoAmt || 0.0;
+                    }
+                    if (material.userData.shader) {
+                        const s = material.userData.shader;
+                        if (p && s.uniforms.uAmpScl) s.uniforms.uAmpScl.value = p.ampScl || 1.0;
+                    }
+                    if (dataCanvas && sharedStateRef.current.pixels) {
+                        const ctx = dataCanvas.getContext('2d'); const imgData = new ImageData(sharedStateRef.current.pixels, DW, DH);
+                        ctx.putImageData(imgData, 0, 0); dataTexture.needsUpdate = true;
+                    }
+                }
+                
+                const settings = settingsRef.current[visualTemplate];
+                if (settings) {
+                    const u = material.uniforms;
+                    if (u.uElevationMult) u.uElevationMult.value = settings.elevationMultiplier;
+                    if (u.uSize) u.uSize.value = settings.size;
+                    if (u.uWaveCount) u.uWaveCount.value = settings.waveCount;
+                    if (u.uGlow) u.uGlow.value = settings.glowIntensity;
+                    if (u.uGlitchIntensity) u.uGlitchIntensity.value = settings.glitchIntensity;
+                    if (u.uPixelation) u.uPixelation.value = settings.pixelation;
+                    if (u.uViscosity) u.uViscosity.value = settings.viscosity;
+                    if (u.uSplash) u.uSplash.value = settings.splashForce;
+                    if (u.uFlow) u.uFlow.value = settings.flow || 1.0;
+                    if (u.uCamSens) u.uCamSens.value = settings.camSens || 1.0;
+                    if (u.uCamContrast) u.uCamContrast.value = settings.camContrast || 1.0;
+                    if (u.uCamFreq) u.uCamFreq.value = settings.camFreq || 1.0;
+                    if (u.uDepthScale) u.uDepthScale.value = settings.depthScale;
+                    if (u.uRoomFold) u.uRoomFold.value = settings.roomFold;
+                    if (u.uPointSize) u.uPointSize.value = settings.pointSize;
+                    if (u.uGhosting) u.uGhosting.value = settings.ghosting || 0.5;
+                    
+                    const currentBpm = (sharedStateRef.current && sharedStateRef.current.bpm) ? sharedStateRef.current.bpm : 120.0;
+                    const bpmMultiplier = currentBpm / 120.0;
+                    const delta = clock.getDelta() * (settings.speed !== undefined ? settings.speed : 1.0) * bpmMultiplier;
+                    if (u.uTime) u.uTime.value += delta;
+                    if (material.userData.shader) {
+                        const s = material.userData.shader;
+                        if (s.uniforms.uTime) s.uniforms.uTime.value += delta;
+                        if (s.uniforms.uDepthScale && settings.depthScale) s.uniforms.uDepthScale.value = settings.depthScale;
+                    }
+                } else {
+                    const currentBpm = (sharedStateRef.current && sharedStateRef.current.bpm) ? sharedStateRef.current.bpm : 120.0;
+                    if (material.uniforms.uTime) material.uniforms.uTime.value += clock.getDelta() * (currentBpm / 120.0);
+                }
+
+                renderer.render(scene, camera);
             };
             animate();
             const handleResize = () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); };
