@@ -232,7 +232,7 @@ const LobbyScreen = ({ onStart, savedProjects = [], onLoadProject }) => {
             <style dangerouslySetInnerHTML={{
                 __html: `
                 .opto-lobby-root {
-                    width: 100vw; height: 100vh; background: #07070A; color: #fff;
+                    width: 100%; height: 100%; background: #07070A; color: #fff;
                     display: flex; align-items: center; justify-content: center;
                     font-family: 'Open Sans', sans-serif; position: relative; overflow: hidden;
                     -webkit-font-smoothing: antialiased;

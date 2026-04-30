@@ -1342,7 +1342,7 @@ function App() {
                 <canvas ref={canvasFg} className="wires-canvas" />
 
             {networkMode === 'MENU' && (
-                <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 99999, pointerEvents: 'auto' }}>
+                <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 99999, pointerEvents: 'auto' }} onPointerDown={(e) => e.stopPropagation()}>
                     <window.LobbyScreen
                         onStart={(m) => handleLobbyStart(m)}
                         savedProjects={savedProjects}
