@@ -214,9 +214,14 @@ const DraggableWindow = ({ id, title, color, initialX, initialY, initialW, initi
                 const jackEl = window.OptoRackJacks && window.OptoRackJacks[`${id}_${portId}`];
                 if (jackEl) {
                     const r = jackEl.getBoundingClientRect();
+                    const sc = window.studioScale || 1;
                     // Map screen coords back to "world" space (relative to world container)
-                    // This is handled by render loop, so just provide absolute center for now
-                    return { x: r.left + r.width / 2, y: r.top + r.height / 2, isAbsolute: true };
+                    // We must divide by the studioScale because the canvas is inside the scaled container
+                    return { 
+                        x: (r.left + r.width / 2) / sc, 
+                        y: (r.top + r.height / 2) / sc, 
+                        isAbsolute: true 
+                    };
                 }
                 // Fallback to approximate position relative to module
                 return { x: pos.current.x + 50, y: pos.current.y + 50 }; 

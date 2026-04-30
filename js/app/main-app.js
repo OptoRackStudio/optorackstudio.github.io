@@ -316,16 +316,16 @@ function App() {
             // But we want it to feel comfortable on smaller screens too.
             // On mobile (portrait), we might want a different baseline.
             const isMobile = w < 800;
-            const baseline = isMobile ? 1200 : 1920; 
+            const baseline = isMobile ? 1400 : 1920; 
             
             let factor = w / baseline;
             
             // Clamp factor to prevent extreme scaling
-            factor = window.clamp(factor, isMobile ? 0.45 : 0.65, 1.25);
+            factor = window.clamp(factor, isMobile ? 0.25 : 0.65, 1.25);
             
             // On very small height (landscape mobile), we might need to scale down further
             if (h < 500) {
-                factor = Math.min(factor, Math.max(0.45, h / 600));
+                factor = Math.min(factor, Math.max(0.25, h / 600));
             }
 
             setStudioScale(factor);
