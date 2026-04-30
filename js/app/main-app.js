@@ -1802,10 +1802,17 @@ function App() {
                                 color="#FF0033" 
                                 initialX={window.innerWidth < 900 ? 10 : 20} 
                                 initialY={window.innerWidth < 900 ? 190 : 80} 
+                                initialW={window.innerWidth < 900 ? 300 : 650}
                                 onDrag={() => { }} 
                                 isFixed={true}
                             >
-                                <div className="master-layout" style={{ padding: '12px', minWidth: '320px' }}>
+                                <div className="master-layout" style={{ 
+                                    padding: '12px', 
+                                    minWidth: window.innerWidth < 900 ? '280px' : '650px',
+                                    flexDirection: window.innerWidth < 900 ? 'column' : 'row',
+                                    alignItems: window.innerWidth < 900 ? 'stretch' : 'center',
+                                    gap: '16px'
+                                }}>
                                     <div className="master-col-left" style={{ paddingRight: '12px' }}>
                                         <ModuleJack id="MASTER" n="AUD" t={true} type="audio" active={isPatched('MASTER', 'IN', true)} patchedColor={getPatchedColor('MASTER', 'IN', true)} domReg={(d) => updatePipRegistry('MASTER', 'IN', d)} onDown={(e) => handleJackDown(e, 'MASTER', 'IN', true)} onUp={() => handleJackUp('MASTER', 'IN', true)} onDoubleClick={() => clearJackCables('MASTER', 'IN', true)} />
                                         <div className="master-rec-row">
@@ -1815,7 +1822,12 @@ function App() {
                                         </div>
                                     </div>
 
-                                    <div className="master-col-mid" style={{ padding: '0 12px' }}>
+                                    <div className="master-col-mid" style={{ 
+                                        padding: window.innerWidth < 900 ? '0' : '0 12px',
+                                        display: 'flex',
+                                        justifyContent: 'center',
+                                        alignItems: 'center'
+                                    }}>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                             <Knob label="OUT GAIN" val={cDsp.current.modules['MASTER'].params.vol} min={-60} max={12.0} step={0.1} def={0.0} onChange={(v) => updateParam('MASTER', 'vol', v)} />
                                             <div className="master-profile-box">
@@ -1844,7 +1856,13 @@ function App() {
                                         </div>
                                     </div>
 
-                                    <div className="master-col-right" style={{ borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: '12px' }}>
+                                    <div className="master-col-right" style={{ 
+                                        borderLeft: window.innerWidth < 900 ? 'none' : '1px solid rgba(255,255,255,0.1)', 
+                                        borderTop: window.innerWidth < 900 ? '1px solid rgba(255,255,255,0.1)' : 'none',
+                                        paddingLeft: window.innerWidth < 900 ? '0' : '12px',
+                                        paddingTop: window.innerWidth < 900 ? '12px' : '0',
+                                        minWidth: '220px'
+                                    }}>
                                         <SpectrumAnalyzer analyser={cDsp.current.mAnalyser} />
                                         <MasterLoudnessMonitor analyser={cDsp.current.mAnalyser} />
                                     </div>

@@ -1539,14 +1539,14 @@ const WebGLBackground = ({ videoRef, wireColor, sharedStateRef, visualTemplate =
                     const ty = typeof c.ty === 'number' ? c.ty : 0;
                     const tz = typeof c.tz === 'number' ? c.tz : 1;
                     
-                    const targetX = -tx * 0.4;
-                    const targetY = ty * 0.4;
-                    const targetZ = 800 / tz;
+                    const targetX = -tx * 0.0; // Locked background parallax
+                    const targetY = ty * 0.0;
+                    const targetZ = 800;       // Locked background depth
                     
                     camera.position.x += (targetX - camera.position.x) * 0.1;
                     camera.position.y += (targetY - camera.position.y) * 0.1;
                     camera.position.z += (targetZ - camera.position.z) * 0.1;
-                    camera.lookAt(camera.position.x, camera.position.y, 0);
+                    camera.lookAt(0, 0, 0); // Always look at world center
                 }
 
                 if (sharedStateRef.current) {

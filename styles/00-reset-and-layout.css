@@ -72,7 +72,7 @@ html {
 	pointer-events: none;
 	filter: grayscale(100%) contrast(120%) brightness(0.8);
 	transition: opacity 1s ease-in-out;
-	transform: scale(1.15); /* Immersive zoom */
+	transform: scale(1.1); /* Consistent overscan */
 }
 
 .bg-interaction {
@@ -136,7 +136,7 @@ html {
 	height: 100%;
 	z-index: 1;
 	pointer-events: none;
-	transform: scale(1.12); /* Slightly less zoom than video for parallax room */
+	transform: scale(1.1); /* Synchronized with video overscan */
 }
 
 /* Black transparent gradient vignette from top to bottom */
