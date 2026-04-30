@@ -2482,6 +2482,7 @@ function App() {
                                     </div>
                                 </window.DraggableWindow>
                             );
+                        })}
                         </div>
                     </>
                 )}
