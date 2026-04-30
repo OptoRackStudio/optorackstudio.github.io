@@ -110,15 +110,30 @@ const Minimap = ({ synths, fxModules, cam, onNavigate }) => {
 
             <style dangerouslySetInnerHTML={{__html: `
                 .minimap-container {
-                    position: absolute; bottom: 20px; right: 20px;
-                    width: 200px; padding: 10px; border: 1px solid rgba(0, 229, 255, 0.3);
+                    position: absolute; bottom: 80px; right: 20px;
+                    width: 180px; padding: 10px; border: 1px solid rgba(0, 229, 255, 0.3);
                     border-radius: 12px; z-index: 10000; cursor: crosshair;
-                    user-select: none; transition: transform 0.2s;
+                    user-select: none; transition: all 0.2s;
                 }
                 .minimap-container:hover { transform: scale(1.05); border-color: #00E5FF; }
                 .minimap-header { font-size: 8px; color: #555; letter-spacing: 2px; margin-bottom: 8px; font-weight: bold; }
                 .minimap-footer { font-size: 7px; color: #00E5FF; margin-top: 8px; font-weight: bold; font-family: 'Space Mono', monospace; }
                 canvas { border-radius: 4px; background: rgba(0,0,0,0.3); width: 100%; height: auto; }
+
+                @media (max-width: 600px) {
+                    .minimap-container {
+                        width: 140px;
+                        bottom: 70px;
+                        right: 10px;
+                    }
+                }
+                @media (max-height: 500px) {
+                    .minimap-container {
+                        width: 120px;
+                        bottom: 60px;
+                        right: 10px;
+                    }
+                }
             `}} />
         </div>
     );

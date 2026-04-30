@@ -90,7 +90,8 @@ const LobbyScreen = ({ onStart, savedProjects = [], onLoadProject }) => {
 
                 <div className="lobby-sidebar glass-panel">
                     <div className="lobby-logo">
-                        OPTO<span className="cyan">RACK DEMO</span>
+                        OPTO<span className="cyan">RACK</span>
+                        <div className="logo-sub">STUDIO_SYSTEM</div>
                     </div>
                     <div className="nav-group">
                         {tabs.map(tab => (
@@ -271,7 +272,7 @@ const LobbyScreen = ({ onStart, savedProjects = [], onLoadProject }) => {
                     box-shadow: 0 10px 40px rgba(0,0,0,0.5); transition: transform 0.3s ease;
                 }
                 .lobby-logo { font-size: 1.6rem; font-weight: 900; text-align: center; margin-bottom: 40px; letter-spacing: -1.5px; line-height: 1; }
-                .logo-sub { font-size: 0.55rem; color: #444; letter-spacing: 3px; margin-top: 4px; }
+                .logo-sub { font-size: 0.55rem; color: #444; letter-spacing: 3px; margin-top: 4px; font-weight: 900; text-transform: uppercase; }
                 .cyan { color: #00E5FF; text-shadow: 0 0 20px rgba(0, 229, 255, 0.6); }
                 
                 .nav-group { flex: 1; display: flex; flex-direction: column; gap: 5px; padding: 0 10px; }
@@ -337,18 +338,29 @@ const LobbyScreen = ({ onStart, savedProjects = [], onLoadProject }) => {
                 .empty-state { padding: 40px; text-align: center; color: #444; font-size: 0.8rem; border: 2px dashed rgba(255,255,255,0.03); border-radius: 16px; font-weight: 900; }
 
                 @media (max-width: 800px) {
-                    .lobby-main-layout { flex-direction: column; height: 90vh; max-height: none; width: 100%; margin-top: 50px; }
+                    .lobby-main-layout { flex-direction: column; height: 95vh; max-height: none; width: 100%; margin-top: 50px; gap: 0; }
                     .lobby-sidebar { 
-                        position: fixed; left: -100%; top: 50px; width: 250px; height: calc(100vh - 50px); 
+                        position: fixed; left: -100%; top: 50px; width: 260px; height: calc(100vh - 50px); 
                         z-index: 2000; border-radius: 0; border-left: none; border-top: none;
                         transition: left 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+                        padding: 20px 0;
                     }
-                    .sidebar-open .lobby-sidebar { left: 0; }
-                    .mobile-menu-btn { display: block; }
-                    .lobby-content { width: 100%; border-radius: 0; border-left: none; border-right: none; }
-                    .pane-title { font-size: 1.5rem; }
+                    .sidebar-open .lobby-sidebar { left: 0; box-shadow: 20px 0 50px rgba(0,0,0,0.8); }
+                    .mobile-menu-btn { display: block; padding: 0 10px; }
+                    .lobby-content { width: 100%; height: 100%; border-radius: 0; border: none; padding: 25px; }
+                    .pane-title { font-size: 1.4rem; }
+                    .pane-desc { font-size: 0.75rem; margin-bottom: 20px; }
                     .desktop-only { display: none; }
                     .project-grid { grid-template-columns: 1fr; }
+                    .lobby-logo { margin-bottom: 25px; scale: 0.9; }
+                }
+
+                @media (max-height: 500px) and (max-width: 900px) {
+                    .lobby-sidebar { padding: 10px 0; overflow-y: auto; }
+                    .lobby-logo { margin-bottom: 10px; scale: 0.7; }
+                    .nav-item { padding: 8px 20px; font-size: 0.8rem; }
+                    .pane-title { font-size: 1.1rem; margin-bottom: 5px; }
+                    .pane-desc { font-size: 0.7rem; margin-bottom: 15px; }
                 }
             `}} />
         </div>

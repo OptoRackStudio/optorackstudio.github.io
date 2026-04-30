@@ -153,6 +153,7 @@
 	top: 80px;
 	right: 20px;
 	width: 430px;
+	max-width: calc(100vw - 40px);
 	max-height: calc(100vh - 110px);
 	padding: 14px;
 	display: flex;
@@ -374,33 +375,39 @@
 /* Responsiveness for Main Studio */
 @media (max-width: 1200px) {
 	.top-bar {
-		flex-direction: column;
-		align-items: center;
-		padding: 10px;
+		padding: 10px 15px;
 	}
-	.top-bar-left, .top-bar-right, .top-bar-center {
-		width: 100%;
-		justify-content: center;
-		flex: none;
+	.top-bar-left, .top-bar-right {
+		flex: 1;
 	}
+    .top-bar-center {
+        scale: 0.9;
+    }
 }
 
 @media (max-width: 900px) {
     .top-bar {
         padding: 5px;
         gap: 5px;
+        flex-direction: column;
+        align-items: center;
+    }
+    .top-bar-left, .top-bar-right, .top-bar-center {
+        width: 100%;
+        justify-content: center;
+        flex: none;
+        scale: 0.85;
     }
     .creation-tools, .global-console, .session-mgnt {
         padding: 4px 8px;
         gap: 8px;
-        scale: 0.9;
     }
     .top-btn {
         padding: 4px 8px;
     }
     .beginner-guide-panel {
-        width: 300px;
-        top: 140px;
+        width: 340px;
+        top: 180px;
     }
 }
 
@@ -416,7 +423,7 @@
     }
     .top-bar-left, .top-bar-right {
         width: auto;
-        scale: 0.8;
+        scale: 0.75;
         transform-origin: top left;
     }
     .top-bar-right {
@@ -428,8 +435,9 @@
         padding: 6px 12px;
     }
     .beginner-guide-panel {
-        max-height: 80vh;
-        width: 280px;
+        max-height: 85vh;
+        width: 320px;
+        top: 60px;
     }
 }
 

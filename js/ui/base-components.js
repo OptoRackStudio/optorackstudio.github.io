@@ -279,7 +279,12 @@ const DraggableWindow = ({ id, title, color, initialX, initialY, initialW, initi
 
     return (
         <div className="window-container" ref={winRef} onPointerDownCapture={handleFocus} onPointerMove={handlePointerMove} onPointerLeave={handlePointerLeave}
-             style={{ position: isFixed ? 'relative' : 'absolute', width: size.current.w ? `${size.current.w}px` : 'max-content', height: size.current.h ? `${size.current.h}px` : 'max-content' }}>
+             style={{ 
+                 position: isFixed ? 'fixed' : 'absolute', 
+                 zIndex: isFixed ? 100002 : undefined,
+                 width: size.current.w ? `${size.current.w}px` : 'max-content', 
+                 height: size.current.h ? `${size.current.h}px` : 'max-content' 
+             }}>
             <div ref={coreRef} className="window-core glass-panel"
                  style={{
                      borderTop: `3px solid ${color}`,

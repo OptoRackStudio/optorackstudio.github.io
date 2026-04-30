@@ -1,5 +1,6 @@
 window.BeginnerGuideData = {
   shortcuts: [
+    { key: 'H', action: 'Toggle UI visibility (Hide/Show UI)' },
     { key: 'Mouse Wheel', action: 'Zoom canvas in/out' },
     { key: 'Drag Empty Space', action: 'Pan around the patching world' },
     { key: 'Drag Module Header', action: 'Move modules on the grid' },

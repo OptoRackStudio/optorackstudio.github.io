@@ -1504,8 +1504,8 @@ function App() {
                             <div className="browser-overlay" onPointerDown={(e) => e.stopPropagation()}>
                                 <div className="browser-sidebar">
                                     <div className="lobby-logo" style={{ marginBottom: '60px' }}>
-                                        OPTO<span className="cyan">RACK DEMO</span>
-                                        <div className="logo-sub">MODULE_LIBRARY</div>
+                                        OPTO<span className="cyan">RACK</span>
+                                        <div className="logo-sub">STUDIO_SYSTEM</div>
                                     </div>
                                     <div className="nav-group">
                                         <button className={`nav-item ${libraryTab === 'MODULES' ? 'active' : ''}`} onClick={() => setLibraryTab('MODULES')}>
@@ -1738,72 +1738,68 @@ function App() {
                                 )}
                             </div>
                         </div>
+                        
+                        {cDsp.current.modules['MASTER'] && (
+                            <window.DraggableWindow 
+                                id="MASTER" 
+                                title="PRO MASTER BUSS" 
+                                color="#FF0033" 
+                                initialX={window.innerWidth < 900 ? 10 : 20} 
+                                initialY={window.innerWidth < 900 ? 190 : 80} 
+                                onDrag={() => { }} 
+                                isFixed={true}
+                            >
+                                <div className="master-layout" style={{ padding: '12px', minWidth: '320px' }}>
+                                    <div className="master-col-left" style={{ paddingRight: '12px' }}>
+                                        <ModuleJack id="MASTER" n="AUD" t={true} type="audio" active={isPatched('MASTER', 'IN', true)} patchedColor={getPatchedColor('MASTER', 'IN', true)} domReg={(d) => updatePipRegistry('MASTER', 'IN', d)} onDown={(e) => handleJackDown(e, 'MASTER', 'IN', true)} onUp={() => handleJackUp('MASTER', 'IN', true)} onDoubleClick={() => clearJackCables('MASTER', 'IN', true)} />
+                                        <div className="master-rec-row">
+                                            <div className="master-rec-btn" onPointerDown={(e) => { e.stopPropagation(); toggleRecording(); }}
+                                                style={{ background: isRecording ? '#FF0033' : '#111', boxShadow: isRecording ? '0 0 10px #FF0033' : 'none', width: '15px', height: '15px' }} />
+                                            <span style={{ fontSize: '8px', color: isRecording ? '#FF0033' : '#666' }}>REC</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="master-col-mid" style={{ padding: '0 12px' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                            <Knob label="OUT GAIN" val={cDsp.current.modules['MASTER'].params.vol} min={-60} max={12.0} step={0.1} def={0.0} onChange={(v) => updateParam('MASTER', 'vol', v)} />
+                                            <div className="master-profile-box">
+                                                <div className="tiny-label" style={{ marginBottom: '4px' }}>MASTER_PROFILE</div>
+                                                <select className="top-select" value={cDsp.current.modules['MASTER'].params.profile || 'NEUTRAL'}
+                                                    onChange={(e) => {
+                                                        const pKey = e.target.value;
+                                                        const p = MASTER_PROFILES[pKey];
+                                                        updateParam('MASTER', 'profile', pKey);
+                                                        // Update actual nodes
+                                                        const limit = cDsp.current.modules['MASTER'].nodes.limit;
+                                                        limit.threshold.setTargetAtTime(p.threshold, cDsp.current.actx.currentTime, 0.05);
+                                                        limit.ratio.setTargetAtTime(p.ratio, cDsp.current.actx.currentTime, 0.05);
+                                                    }}>
+                                                    {Object.keys(MASTER_PROFILES).map(k => <option key={k} value={k}>{k}</option>)}
+                                                </select>
+                                            </div>
+                                            <div className="master-toggle-row" onPointerDown={(e) => { e.stopPropagation(); updateParam('MASTER', 'brickwall', !cDsp.current.modules['MASTER'].params.brickwall); }}>
+                                                <div className="master-toggle-btn" style={{ background: cDsp.current.modules['MASTER'].params.brickwall ? '#00E5FF' : '#111' }} />
+                                                <div className="master-toggle-label">BRICKWALL</div>
+                                            </div>
+                                            <div className="master-toggle-row" onPointerDown={(e) => { e.stopPropagation(); updateParam('MASTER', 'mute', !cDsp.current.modules['MASTER'].params.mute); }}>
+                                                <div className="master-toggle-btn" style={{ background: cDsp.current.modules['MASTER'].params.mute ? '#FF0033' : '#111' }} />
+                                                <div className="master-toggle-label">MUTE</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="master-col-right" style={{ borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: '12px' }}>
+                                        <SpectrumAnalyzer analyser={cDsp.current.mAnalyser} />
+                                        <MasterLoudnessMonitor analyser={cDsp.current.mAnalyser} />
+                                    </div>
+                                </div>
+                            </window.DraggableWindow>
+                        )}
                     </div>
 
                     <div className="global-ui-toggle" onClick={() => setIsUiHidden(!isUiHidden)} onPointerDown={(e) => e.stopPropagation()}>
                         {isUiHidden ? 'SHOW UI' : 'HIDE UI'}
                     </div>
-
-                    {cDsp.current.modules['MASTER'] && (
-                        <window.DraggableWindow id="MASTER" title="PRO MASTER BUSS" color="#FF0033" initialX={20} initialY={80} onDrag={() => { }} isFixed={true}>
-                            <div className="master-layout" style={{ padding: '12px', minWidth: '320px' }}>
-                                <div className="master-col-left" style={{ paddingRight: '12px' }}>
-                                    <ModuleJack id="MASTER" n="AUD" t={true} type="audio" active={isPatched('MASTER', 'IN', true)} patchedColor={getPatchedColor('MASTER', 'IN', true)} domReg={(d) => updatePipRegistry('MASTER', 'IN', d)} onDown={(e) => handleJackDown(e, 'MASTER', 'IN', true)} onUp={() => handleJackUp('MASTER', 'IN', true)} onDoubleClick={() => clearJackCables('MASTER', 'IN', true)} />
-                                    <div className="master-rec-row">
-                                        <div className="master-rec-btn" onPointerDown={(e) => { e.stopPropagation(); toggleRecording(); }}
-                                            style={{ background: isRecording ? '#FF0033' : '#111', boxShadow: isRecording ? '0 0 10px #FF0033' : 'none', width: '15px', height: '15px' }} />
-                                        <span style={{ fontSize: '8px', color: isRecording ? '#FF0033' : '#666' }}>REC</span>
-                                    </div>
-                                </div>
-
-                                <div className="master-col-mid" style={{ padding: '0 12px' }}>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                        <Knob label="OUT GAIN" val={cDsp.current.modules['MASTER'].params.vol} min={-60} max={12.0} step={0.1} def={0.0} onChange={(v) => updateParam('MASTER', 'vol', v)} />
-                                        <div className="master-profile-box">
-                                            <div className="tiny-label" style={{ marginBottom: '4px' }}>MASTER_PROFILE</div>
-                                            <select className="top-select" value={cDsp.current.modules['MASTER'].params.profile || 'NEUTRAL'}
-                                                onChange={(e) => {
-                                                    const pKey = e.target.value;
-                                                    const p = MASTER_PROFILES[pKey];
-                                                    updateParam('MASTER', 'profile', pKey);
-                                                    // Update actual nodes
-                                                    const limit = cDsp.current.modules['MASTER'].nodes.limit;
-                                                    limit.threshold.setTargetAtTime(p.threshold, cDsp.current.actx.currentTime, 0.05);
-                                                    limit.ratio.setTargetAtTime(p.ratio, cDsp.current.actx.currentTime, 0.05);
-                                                    limit.attack.setTargetAtTime(p.attack, cDsp.current.actx.currentTime, 0.05);
-                                                    limit.release.setTargetAtTime(p.release, cDsp.current.actx.currentTime, 0.05);
-                                                }}
-                                                onPointerDown={(e) => e.stopPropagation()}
-                                                style={{ width: '100%', fontSize: '8px' }}
-                                            >
-                                                {Object.keys(MASTER_PROFILES).map(k => <option key={k} value={k}>{k.replace('_', ' ')}</option>)}
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="master-toggles" style={{ padding: '0 12px' }}>
-                                    <div className="master-toggle-row" onPointerDown={(e) => { e.stopPropagation(); updateParam('MASTER', 'softClip', !cDsp.current.modules['MASTER'].params.softClip); }}>
-                                        <div className="master-toggle-btn" style={{ background: cDsp.current.modules['MASTER'].params.softClip ? '#FF0033' : '#111' }} />
-                                        <div className="master-toggle-label">SOFT CLIP</div>
-                                    </div>
-                                    <div className="master-toggle-row" onPointerDown={(e) => { e.stopPropagation(); updateParam('MASTER', 'limiter', !cDsp.current.modules['MASTER'].params.limiter); }}>
-                                        <div className="master-toggle-btn" style={{ background: cDsp.current.modules['MASTER'].params.limiter ? '#FF0033' : '#111' }} />
-                                        <div className="master-toggle-label">BRICKWALL</div>
-                                    </div>
-                                    <div className="master-toggle-row" onPointerDown={(e) => { e.stopPropagation(); updateParam('MASTER', 'mute', !cDsp.current.modules['MASTER'].params.mute); }}>
-                                        <div className="master-toggle-btn" style={{ background: cDsp.current.modules['MASTER'].params.mute ? '#FF0033' : '#111' }} />
-                                        <div className="master-toggle-label">MUTE</div>
-                                    </div>
-                                </div>
-
-                                <div className="master-col-right" style={{ borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: '12px' }}>
-                                    <SpectrumAnalyzer analyser={cDsp.current.mAnalyser} />
-                                    <MasterLoudnessMonitor analyser={cDsp.current.mAnalyser} />
-                                </div>
-                            </div>
-                        </window.DraggableWindow>
-                    )}
 
                     <div className="world-layer" ref={worldRef}>
 
