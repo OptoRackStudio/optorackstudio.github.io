@@ -45,6 +45,7 @@ function App() {
     const [isProjectsOpen, setIsProjectsOpen] = useState(false);
     const [isGuideOpen, setIsGuideOpen] = useState(true);
     const [isSynthMenuOpen, setIsSynthMenuOpen] = useState(false);
+    const [isUiHidden, setIsUiHidden] = useState(false);
 
     const [savedProjects, setSavedProjects] = useState([]);
     const [saveDirectoryHandle, setSaveDirectoryHandle] = useState(null);
@@ -893,6 +894,17 @@ function App() {
         return () => window.removeEventListener('pointerdown', onGlobalDown, { capture: true });
     }, []);
 
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+            if (e.key.toLowerCase() === 'h') {
+                setIsUiHidden(prev => !prev);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
+
     const hdPtrUp = () => {
         disruptCursor.current.down = false;
         disruptCursor.current.force = 0.0;
@@ -1323,7 +1335,7 @@ function App() {
 
             {viewMode === "PATCHING" && (
                 <>
-                    <div className="app-ui-layer">
+                    <div className={`app-ui-layer ${isUiHidden ? 'ui-hidden' : ''}`}>
 
                         <div className="top-bar">
                             <div className="top-bar-left">
@@ -1485,6 +1497,7 @@ function App() {
                         <window.TipsPanel assignMode={assignMode} tipIndex={tipIndex} />
                         <window.BeginnerGuidePanel isOpen={isGuideOpen} onClose={() => setIsGuideOpen(false)} />
 
+                        {/* GLOBAL UI TOGGLE BUTTON (Always Visible) */}
                         {/* Floating Master IO removed per user request to avoid duplication */}
 
                         {isBrowserOpen && (
@@ -1725,6 +1738,10 @@ function App() {
                                 )}
                             </div>
                         </div>
+                    </div>
+
+                    <div className="global-ui-toggle" onClick={() => setIsUiHidden(!isUiHidden)} onPointerDown={(e) => e.stopPropagation()}>
+                        {isUiHidden ? 'SHOW UI' : 'HIDE UI'}
                     </div>
 
                     {cDsp.current.modules['MASTER'] && (
