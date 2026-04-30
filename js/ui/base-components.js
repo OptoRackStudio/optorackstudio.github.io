@@ -238,8 +238,9 @@ const DraggableWindow = ({ id, title, color, initialX, initialY, initialW, initi
         const rect = winRef.current.getBoundingClientRect(); const cx = rect.left + rect.width / 2; const cy = rect.top + rect.height / 2;
         const dx = e.clientX - cx; const dy = e.clientY - cy; const isMobile = window.innerWidth < 768;
         const maxTilt = isMobile ? 2 : 6; const maxLift = isMobile ? 10 : 25;
-        const rx = window.clamp((dy / (rect.height / 2)) * -maxTilt, -maxTilt, maxTilt); const ry = window.clamp((dx / (rect.width / 2)) * maxTilt, -maxTilt, maxTilt);
-        coreRef.current.style.transform = `translateZ(${maxLift}px) rotateX(${rx}deg) rotateY(${ry}deg)`; 
+        const rx = isMobile ? 0 : window.clamp((dy / (rect.height / 2)) * -maxTilt, -maxTilt, maxTilt); 
+        const ry = isMobile ? 0 : window.clamp((dx / (rect.width / 2)) * maxTilt, -maxTilt, maxTilt);
+        coreRef.current.style.transform = isMobile ? 'none' : `translateZ(${maxLift}px) rotateX(${rx}deg) rotateY(${ry}deg)`; 
     }, [isEntering, isGroup]);
 
     const handlePointerLeave = useCallback(() => {
