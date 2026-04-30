@@ -78,7 +78,7 @@ const LobbyScreen = ({ onStart, savedProjects = [], onLoadProject }) => {
             <div className="scanline" />
 
             <div className="lobby-top-bar" style={{ opacity: bootPhase >= 1 ? 1 : 0 }}>
-                <div className="mobile-menu-btn" onPointerDown={(e) => { e.stopPropagation(); setIsSidebarOpen(!isSidebarOpen); }}>☰</div>
+                <div className="mobile-menu-btn" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>☰</div>
                 <div className="system-tag">OPTORACK // NODE_ACTIVE</div>
                 <div className="status-readout">
                     <span className="dot" />
@@ -98,7 +98,7 @@ const LobbyScreen = ({ onStart, savedProjects = [], onLoadProject }) => {
                             <button
                                 key={tab.id}
                                 className={`nav-item ${activeTab === tab.id ? 'active' : ''}`}
-                                onPointerDown={(e) => { e.stopPropagation(); setActiveTab(tab.id); setIsSidebarOpen(false); }}
+                                onClick={() => { setActiveTab(tab.id); setIsSidebarOpen(false); }}
                             >
                                 <span className="icon">{tab.icon}</span>
                                 <span className="label">{tab.label}</span>
@@ -121,7 +121,7 @@ const LobbyScreen = ({ onStart, savedProjects = [], onLoadProject }) => {
                             <h2 className="pane-title">STUDIO_OFFLINE</h2>
                             <p className="pane-desc">Launch a private OptoRack instance for high-fidelity spectrogram synthesis without network latency.</p>
                             <div className="hero-action">
-                                <button className="primary-glow-btn" onPointerDown={(e) => { e.stopPropagation(); onStart('OFFLINE'); }}>
+                                <button className="primary-glow-btn" onClick={() => onStart('OFFLINE')}>
                                     LAUNCH_LOCAL
                                 </button>
                             </div>
@@ -134,7 +134,7 @@ const LobbyScreen = ({ onStart, savedProjects = [], onLoadProject }) => {
                             <p className="pane-desc">Reopen your existing workspaces. Mount directory in studio to populate.</p>
                             <div className="project-grid">
                                 {savedProjects.length > 0 ? savedProjects.map((p, idx) => (
-                                    <div key={idx} className="project-card glass-panel" onPointerDown={(e) => { e.stopPropagation(); onLoadProject(p.handle); }}>
+                                    <div key={idx} className="project-card glass-panel" onClick={() => onLoadProject(p.handle)}>
                                         <div className="card-icon">📁</div>
                                         <div className="card-info">
                                             <div className="card-name">{p.name.replace('.json', '').toUpperCase()}</div>
@@ -158,7 +158,7 @@ const LobbyScreen = ({ onStart, savedProjects = [], onLoadProject }) => {
                             <p className="pane-desc">Discovery of studios on your local machine or network.</p>
                             <div className="server-list">
                                 {localServers.length > 0 ? localServers.map(s => (
-                                    <div key={s.id} className="server-card glass-panel" onPointerDown={(e) => { e.stopPropagation(); handleJoin(s.id); }}>
+                                    <div key={s.id} className="server-card glass-panel" onClick={() => handleJoin(s.id)}>
                                         <div className="card-header">
                                             <span className="server-name">{s.name.toUpperCase()}'S_LOBBY</span>
                                             <span className="tag cyan">LAN</span>
@@ -186,13 +186,13 @@ const LobbyScreen = ({ onStart, savedProjects = [], onLoadProject }) => {
                                         placeholder="OPTO-XXXXXX"
                                         className="cyber-input"
                                     />
-                                    <button className="join-submit" onPointerDown={(e) => { e.stopPropagation(); handleJoin(joinId); }} disabled={isConnecting}>
+                                    <button className="join-submit" onClick={() => handleJoin(joinId)} disabled={isConnecting}>
                                         JOIN
                                     </button>
                                 </div>
                             </div>
                             <div className="divider-text">OR</div>
-                            <button className="host-btn" onPointerDown={(e) => { e.stopPropagation(); handleHost(); }} disabled={isConnecting}>
+                            <button className="host-btn" onClick={handleHost} disabled={isConnecting}>
                                 CREATE_NEW_HOST_NODE
                             </button>
                         </div>
@@ -235,7 +235,7 @@ const LobbyScreen = ({ onStart, savedProjects = [], onLoadProject }) => {
                     width: 100%; height: 100%; background: #07070A; color: #fff;
                     display: flex; align-items: center; justify-content: center;
                     font-family: 'Open Sans', sans-serif; position: relative; overflow: hidden;
-                    -webkit-font-smoothing: antialiased; touch-action: none;
+                    -webkit-font-smoothing: antialiased;
                 }
                 .cyber-grid {
                     position: absolute; width: 200%; height: 200%; top: -50%; left: -50%;
