@@ -331,6 +331,7 @@ function App() {
             setStudioScale(factor);
             studioScaleRef.current = factor;
             window.studioScale = factor;
+            document.documentElement.style.setProperty('--studio-scale', factor);
         };
 
         calculateScale();
@@ -1329,12 +1330,20 @@ function App() {
 
             <div id="bg-interaction" className="bg-interaction" onPointerDown={handleBgPointerDown} onPointerUp={hdPtrUp} onPointerMove={hdPtrMov} />
 
-            <div className="app-scaler" style={{ transform: `scale(${studioScale})`, transformOrigin: '0 0', width: `${100 / studioScale}%`, height: `${100 / studioScale}%` }}>
+            <div className="app-scaler" style={{ 
+                transform: `scale(${studioScale})`, 
+                WebkitTransform: `scale(${studioScale})`,
+                transformOrigin: '0 0', 
+                WebkitTransformOrigin: '0 0',
+                width: `${100 / studioScale}%`, 
+                height: `${100 / studioScale}%`,
+                pointerEvents: 'none'
+            }}>
                 {/* Wires Canvas - Z-Index 30 puts it behind the modules (which are 40+) */}
                 <canvas ref={canvasFg} className="wires-canvas" />
 
             {networkMode === 'MENU' && (
-                <div style={{ position: 'absolute', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 99999 }}>
+                <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 99999, pointerEvents: 'auto' }}>
                     <window.LobbyScreen
                         onStart={(m) => handleLobbyStart(m)}
                         savedProjects={savedProjects}

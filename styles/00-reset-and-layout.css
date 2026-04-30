@@ -99,11 +99,11 @@ html {
 	position: absolute;
 	top: 0;
 	left: 0;
-	width: 100%;
-	height: 100%;
 	transform-origin: 0 0;
 	transition: transform 0.5s cubic-bezier(0.19, 1, 0.22, 1);
 	pointer-events: none;
+	touch-action: none;
+	-webkit-backface-visibility: hidden;
 }
 
 .app-ui-layer {
@@ -114,6 +114,7 @@ html {
 	height: 100%;
 	pointer-events: none;
 	z-index: 100000;
+	touch-action: none;
 }
 
 .world-layer {
@@ -122,6 +123,7 @@ html {
 	left: 0;
 	pointer-events: none;
 	z-index: 40;
+	touch-action: none;
 }
 
 /* WebGL Background Container */
