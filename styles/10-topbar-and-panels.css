@@ -381,7 +381,7 @@
 		flex: 1;
 	}
     .top-bar-center {
-        scale: 0.9;
+        /* scale removed - handled by app-scaler */
     }
 }
 
@@ -396,7 +396,7 @@
         width: 100%;
         justify-content: center;
         flex: none;
-        scale: 0.85;
+        /* scale removed - handled by app-scaler */
     }
     .creation-tools, .global-console, .session-mgnt {
         padding: 4px 8px;
@@ -423,7 +423,7 @@
     }
     .top-bar-left, .top-bar-right {
         width: auto;
-        scale: 0.75;
+        /* scale removed - handled by app-scaler */
         transform-origin: top left;
     }
     .top-bar-right {
@@ -444,13 +444,12 @@
 @media (max-width: 600px) {
 	.desktop-only { display: none; }
 	.top-bar-right { display: none; }
-    .top-bar-center { scale: 0.8; }
-    .top-bar-left { scale: 0.8; }
+    /* scale removed - handled by app-scaler */
     
     /* Scale modules down on portrait mobile */
     .window-core {
         transform-origin: top left;
-        scale: 0.85;
+        /* scale removed - handled by app-scaler */
     }
     .knob-container {
         width: 70px;
@@ -459,7 +458,7 @@
 
 @media (max-width: 400px) {
     .window-core {
-        scale: 0.75;
+        /* scale removed - handled by app-scaler */
     }
 }
 

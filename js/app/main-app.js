@@ -64,6 +64,8 @@ function App() {
     const [startupResolutionProfile, setStartupResolutionProfile] = useState(window.OptoRackResolution.currentKey || TWEAKS.defaults.resolutionProfile);
 
     const [isVisualsBrowserOpen, setIsVisualsBrowserOpen] = useState(false);
+    const [studioScale, setStudioScale] = useState(1.0);
+    const studioScaleRef = useRef(1.0);
     const [visualTemplate, setVisualTemplate] = useState('PARTICLES');
     const [visualSettings, setVisualSettings] = useState({
         PARTICLES: { size: 5.0, elevationMultiplier: 300.0, speed: 0.5, camSens: 1.0, camContrast: 1.0, camFreq: 1.0 },
@@ -304,6 +306,37 @@ function App() {
         frameId = requestAnimationFrame(checkPerf);
         return () => cancelAnimationFrame(frameId);
     }, [viewMode]);
+
+    useEffect(() => {
+        const calculateScale = () => {
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+            
+            // Reference width is 1920 (1080p Desktop)
+            // But we want it to feel comfortable on smaller screens too.
+            // On mobile (portrait), we might want a different baseline.
+            const isMobile = w < 800;
+            const baseline = isMobile ? 1200 : 1920; 
+            
+            let factor = w / baseline;
+            
+            // Clamp factor to prevent extreme scaling
+            factor = window.clamp(factor, isMobile ? 0.45 : 0.65, 1.25);
+            
+            // On very small height (landscape mobile), we might need to scale down further
+            if (h < 500) {
+                factor = Math.min(factor, h / 600);
+            }
+
+            setStudioScale(factor);
+            studioScaleRef.current = factor;
+            window.studioScale = factor;
+        };
+
+        calculateScale();
+        window.addEventListener('resize', calculateScale);
+        return () => window.removeEventListener('resize', calculateScale);
+    }, []);
 
     useEffect(() => {
         try {
@@ -822,8 +855,10 @@ function App() {
         const worldSize = TWEAKS.ranges.worldSize || 5000;
         const limit = worldSize * 1.5;
 
-        camRef.current.tx = e.clientX - (e.clientX - camRef.current.tx) * scaleRatio;
-        camRef.current.ty = e.clientY - (e.clientY - camRef.current.ty) * scaleRatio;
+        // Account for studioScale when zooming to keep focal point aligned
+        const sc = studioScaleRef.current;
+        camRef.current.tx = e.clientX / sc - (e.clientX / sc - camRef.current.tx) * scaleRatio;
+        camRef.current.ty = e.clientY / sc - (e.clientY / sc - camRef.current.ty) * scaleRatio;
         camRef.current.tz = newZ;
     };
 
@@ -853,9 +888,10 @@ function App() {
             const worldSize = TWEAKS.ranges.worldSize || 5000;
             const limit = worldSize * 1.5;
 
-            // Calculate delta and update target camera position
-            camRef.current.tx += (moveEvent.clientX - lastX);
-            camRef.current.ty += (moveEvent.clientY - lastY);
+            // Divide delta by studioScale to keep panning speed consistent with cursor movement
+            const sc = studioScaleRef.current;
+            camRef.current.tx += (moveEvent.clientX - lastX) / sc;
+            camRef.current.ty += (moveEvent.clientY - lastY) / sc;
 
             lastX = moveEvent.clientX;
             lastY = moveEvent.clientY;
@@ -1293,8 +1329,9 @@ function App() {
 
             <div id="bg-interaction" className="bg-interaction" onPointerDown={handleBgPointerDown} onPointerUp={hdPtrUp} onPointerMove={hdPtrMov} />
 
-            {/* Wires Canvas - Z-Index 30 puts it behind the modules (which are 40+) */}
-            <canvas ref={canvasFg} className="wires-canvas" />
+            <div className="app-scaler" style={{ transform: `scale(${studioScale})`, transformOrigin: '0 0', width: `${100 / studioScale}%`, height: `${100 / studioScale}%` }}>
+                {/* Wires Canvas - Z-Index 30 puts it behind the modules (which are 40+) */}
+                <canvas ref={canvasFg} className="wires-canvas" />
 
             {networkMode === 'MENU' && (
                 <div style={{ position: 'absolute', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 99999 }}>
@@ -2445,12 +2482,12 @@ function App() {
                                     </div>
                                 </window.DraggableWindow>
                             );
-                        })}
-                    </div>
-                </>
-            )}
+                        </div>
+                    </>
+                )}
         </div>
-    );
+    </div>
+);
 }
 
 const root = ReactDOM.createRoot(document.getElementById('root'));

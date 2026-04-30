@@ -39,15 +39,31 @@ window.OptoRackRenderLoop = class {
         const { cDsp, camRef, bpmRef, synthsRef, fxModulesRef, cablesRef, sharedStateRef, canvasFg, scanCanvas, vRef, worldRef, glContainerRef, disruptCursor, updateParam } = this.config;
         const actx = cDsp.current?.actx;
         const ctActx = actx ? actx.currentTime : 0;
-        const cw = window.innerWidth, ch = window.innerHeight;
+        const sc = window.studioScale || 1;
+        const cw = window.innerWidth / sc;
+        const ch = window.innerHeight / sc;
         const dpr = window.devicePixelRatio || 1;
-        const fgCtx = canvasFg.current?.getContext('2d');
+        const canvas = canvasFg.current;
+        if (!canvas) return;
+        const fgCtx = canvas.getContext('2d');
         if (!fgCtx) return;
+
+        // Resize canvas to unscaled dimensions
+        if (canvas.width !== Math.floor(cw * dpr)) {
+            canvas.width = cw * dpr;
+            canvas.height = ch * dpr;
+            canvas.style.width = `${cw}px`;
+            canvas.style.height = `${ch}px`;
+        }
+        fgCtx.resetTransform();
+        fgCtx.scale(dpr, dpr);
 
         // ── CAMERA & PARALLAX ────────────────────────────────────────────────
         const centerX = cw / 2, centerY = ch / 2;
-        const targetLookX = ((disruptCursor.current.x - centerX) / centerX) * 0.2;
-        const targetLookY = ((disruptCursor.current.y - centerY) / centerY) * 0.2;
+        const scMouseX = disruptCursor.current.x / sc;
+        const scMouseY = disruptCursor.current.y / sc;
+        const targetLookX = ((scMouseX - centerX) / centerX) * 0.2;
+        const targetLookY = ((scMouseY - centerY) / centerY) * 0.2;
 
         // 1. Prevent NaN Poisoning: Ensure targets are at least 0 or 1
         camRef.current.tx = camRef.current.tx || 0;
@@ -328,8 +344,8 @@ window.OptoRackRenderLoop = class {
                 p.x += vx;
                 p.y += vy + gravity;
 
-                const dx = p.x - mouse.x;
-                const dy = p.y - mouse.y;
+                const dx = p.x - (mouse.x / (window.studioScale || 1));
+                const dy = p.y - (mouse.y / (window.studioScale || 1));
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 if (dist < 80) {
                     const force = (80 - dist) / 80;
@@ -412,7 +428,7 @@ window.OptoRackRenderLoop = class {
                 const portPos = ctrl.getWorldPortPos(d.portId, d.isInput);
                 if (!portPos) return;
                 const p1 = { x: portPos.x * cam.z + cam.x, y: portPos.y * cam.z + cam.y };
-                const p2 = { x: mouse.x, y: mouse.y };
+                const p2 = { x: mouse.x / (window.studioScale || 1), y: mouse.y / (window.studioScale || 1) };
 
                 ctx.beginPath();
                 ctx.moveTo(p1.x, p1.y);
