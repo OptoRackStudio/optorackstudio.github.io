@@ -115,7 +115,8 @@ const WavetablePanelDisplay = ({ mod, color }) => {
                 }
             }
             
-            if (window.optorackWebGLCanvas) {
+            const isMobile = window.innerWidth < 900;
+            if (window.optorackWebGLCanvas && !isMobile) {
                 ctx.globalAlpha = 0.5;
                 ctx.globalCompositeOperation = 'screen';
                 ctx.drawImage(window.optorackWebGLCanvas, 0, 0, w, h);

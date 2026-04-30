@@ -47,7 +47,8 @@ const WavetablePanelDisplay = ({ mod, color, updateParam }) => {
             if (!mod || !mod.currentTopo || !mod.params) return;
             ctx.clearRect(0, 0, w, h);
             
-            if (window.optorackWebGLCanvas) {
+            const isMobile = window.innerWidth < 900;
+            if (window.optorackWebGLCanvas && !isMobile) {
                 ctx.globalAlpha = 0.8;
                 ctx.globalCompositeOperation = 'screen';
                 ctx.drawImage(window.optorackWebGLCanvas, 0, 0, w, h);
