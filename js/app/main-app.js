@@ -1364,7 +1364,7 @@ function App() {
             )}
 
             {viewMode === "SLEEP" && networkMode !== 'MENU' && (
-                <div className="sleep-overlay" style={{ pointerEvents: 'auto', touchAction: 'none' }} onPointerDown={(e) => e.stopPropagation()}>
+                <div className="sleep-overlay">
                     <div className="glass-panel sleep-panel">
                         <h2 className="sleep-title">OPTORACK - DEMO <span style={{ color: '#00E5FF', fontWeight: 'bold' }}>PRO</span></h2>
                         <p className="sleep-text">
@@ -1379,10 +1379,7 @@ function App() {
                             </select>
                             <div className="sleep-config-note">Higher presets improve visual clarity and reduce noise, with more CPU/GPU cost.</div>
                         </div>
-                        <div className="sleep-start-btn" 
-                            onPointerDown={(e) => { e.stopPropagation(); INIT_MOTHER_SYSTEM(networkMode); }}
-                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                        >
+                        <div className="sleep-start-btn" onClick={() => INIT_MOTHER_SYSTEM(networkMode)}>
                             [ INITIATE TEST SEQUENCE ]
                         </div>
                     </div>
