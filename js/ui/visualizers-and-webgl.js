@@ -872,22 +872,27 @@ const WebGLBackground = ({ videoRef, wireColor, sharedStateRef, visualTemplate =
             containerRef.current.appendChild(renderer.domElement);
             window.optorackWebGLCanvas = renderer.domElement;
 
+            const DW = window.DW || 64;
+            const DH = window.DH || 64;
+
             const canvas = document.createElement('canvas'); canvas.width = 32; canvas.height = 32; const context = canvas.getContext('2d');
             const gradient = context.createRadialGradient(16, 16, 0, 16, 16, 16);
             gradient.addColorStop(0, 'rgba(255,255,255,1)'); gradient.addColorStop(0.2, 'rgba(255,255,255,0.8)'); gradient.addColorStop(0.5, 'rgba(255,255,255,0.2)'); gradient.addColorStop(1, 'rgba(0,0,0,0)');
             context.fillStyle = gradient; context.fillRect(0, 0, 32, 32); const particleTexture = new THREE.CanvasTexture(canvas);
-            let dataTexture; let dataCanvas;
+            let dataTexture; let dataCanvas; let imageData;
             if (videoRef && videoRef.current) {
                 dataTexture = new THREE.VideoTexture(videoRef.current);
                 dataTexture.minFilter = THREE.LinearFilter;
                 dataTexture.magFilter = THREE.LinearFilter;
                 dataTexture.format = THREE.RGBAFormat;
             } else {
-                dataCanvas = document.createElement('canvas'); dataCanvas.width = window.DW || 160; dataCanvas.height = window.DH || 120;
+                dataCanvas = document.createElement('canvas'); dataCanvas.width = DW; dataCanvas.height = DH;
                 dataTexture = new THREE.CanvasTexture(dataCanvas); dataTexture.minFilter = THREE.LinearFilter; dataTexture.magFilter = THREE.LinearFilter;
+                imageData = new ImageData(DW, DH);
             }
             
-            const geometry = new THREE.PlaneGeometry(1600, 1200, 512, 384); geometry.rotateX(-Math.PI / 2);
+            // Optimization: Reduce vertex count for mobile stability (256x192 vs 512x384)
+            const geometry = new THREE.PlaneGeometry(1600, 1200, 256, 192); geometry.rotateX(-Math.PI / 2);
             const fullGeom = new THREE.PlaneGeometry(window.innerWidth * 2, window.innerHeight * 2);
             const geometries = [geometry, fullGeom];
             let material;
@@ -1040,7 +1045,7 @@ const WebGLBackground = ({ videoRef, wireColor, sharedStateRef, visualTemplate =
                 camera.position.set(0, 0, 100); camera.lookAt(0, 0, 0);
 
             } else if (visualTemplate === 'DEJA_VU') {
-                const dejaGeom = new THREE.PlaneGeometry(1600, 1200, 512, 384); geometries.push(dejaGeom);
+                const dejaGeom = new THREE.PlaneGeometry(1600, 1200, 256, 192); geometries.push(dejaGeom);
                 material = new THREE.ShaderMaterial({
                     uniforms: { ...commonUniforms, uPointSize: { value: 2.0 }, uDepthScale: { value: 800.0 }, uGhosting: { value: 0.5 } },
                     vertexShader: `
@@ -1094,7 +1099,7 @@ const WebGLBackground = ({ videoRef, wireColor, sharedStateRef, visualTemplate =
                 camera.position.set(0, 100, 700); camera.lookAt(0, 0, 0);
 
             } else if (visualTemplate === 'NATURAL_WORLD') {
-                const natGeom = new THREE.PlaneGeometry(2000, 1500, 512, 384); geometries.push(natGeom);
+                const natGeom = new THREE.PlaneGeometry(2000, 1500, 256, 192); geometries.push(natGeom);
                 material = new THREE.ShaderMaterial({
                     uniforms: { ...commonUniforms, uPointSize: { value: 1.5 }, uDepthScale: { value: 1200.0 } },
                     vertexShader: `
@@ -1153,7 +1158,7 @@ const WebGLBackground = ({ videoRef, wireColor, sharedStateRef, visualTemplate =
                 camera.position.set(0, 300, 1000); camera.lookAt(0, 0, 0);
 
             } else if (visualTemplate === 'AR_ENVIRONMENT') {
-                const arGeom = new THREE.PlaneGeometry(2000, 1500, 512, 384); geometries.push(arGeom);
+                const arGeom = new THREE.PlaneGeometry(2000, 1500, 256, 192); geometries.push(arGeom);
                 material = new THREE.ShaderMaterial({
                     uniforms: { ...commonUniforms, uDepthScale: { value: 600.0 }, uOcclusion: { value: 0.8 } },
                     vertexShader: `
@@ -1561,9 +1566,11 @@ const WebGLBackground = ({ videoRef, wireColor, sharedStateRef, visualTemplate =
                         const s = material.userData.shader;
                         if (p && s.uniforms.uAmpScl) s.uniforms.uAmpScl.value = p.ampScl || 1.0;
                     }
-                    if (dataCanvas && sharedStateRef.current.pixels) {
-                        const ctx = dataCanvas.getContext('2d'); const imgData = new ImageData(sharedStateRef.current.pixels, DW, DH);
-                        ctx.putImageData(imgData, 0, 0); dataTexture.needsUpdate = true;
+                    if (dataCanvas && sharedStateRef.current.pixels && imageData) {
+                        const ctx = dataCanvas.getContext('2d');
+                        imageData.data.set(sharedStateRef.current.pixels);
+                        ctx.putImageData(imageData, 0, 0);
+                        dataTexture.needsUpdate = true;
                     }
                 }
                 

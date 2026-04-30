@@ -23,6 +23,9 @@ const MASTER_PROFILES = {
  * - Houses the persistent Audio Graph (cDsp) and the 60fps Physics Render Loop.
  * - Coordinates between UI interaction and the low-level Web Audio/WebGL drivers.
  */
+window.DW = 64;
+window.DH = 64;
+
 function App() {
     const {
         Knob, Slider, ModuleJack, DraggableWindow, BrowserItem, StepGrid,
@@ -1173,6 +1176,12 @@ function App() {
                 if (networkMode !== 'OFFLINE' && networkMode !== 'MENU') {
                     window.OptoNetwork.send({ type: 'PARAM_UPDATE', modId, param, value: val });
                 }
+
+                // Optimization: Only update expensive WaveShaper curves on manual tweaks, not LFO modulation
+                if (param === 'crush' && mod.nodes && mod.nodes.bitCrusher) {
+                    mod.nodes.bitCrusher.curve = val > 0 ? window.makeClampCurve(1.0 - (val * 0.95)) : window.makeClampCurve(1.0);
+                }
+
                 setRenderTrigger(p => p + 1);
             }
             mod.params[param] = val;
@@ -1230,7 +1239,6 @@ function App() {
                 if (param === 'lfoRate') mod.lfo.frequency.setTargetAtTime(val, ct, 0.1);
                 if (param === 'lfoDepth') mod.lfoDepth.gain.setTargetAtTime(val, ct, 0.1);
                 if (param === 'drive') mod.nodes.synthDrive.gain.setTargetAtTime(Math.pow(10, val / 20), ct, 0.1);
-                if (param === 'crush') mod.nodes.bitCrusher.curve = val > 0 ? window.makeClampCurve(1.0 - (val * 0.95)) : window.makeClampCurve(1.0);
                 if (param === 'inLvl') {
                     if (mod.audioIn) mod.audioIn.gain.setTargetAtTime(val, ct, 0.1);
                     mod.unisonMaster.gain.setTargetAtTime(val, ct, 0.1);

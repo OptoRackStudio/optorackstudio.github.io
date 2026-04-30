@@ -17,7 +17,8 @@ window.OptoRackRenderLoop = class {
         this.frameCount = 0;
         this.lastTime = performance.now();
         this.loopId = null;
-        this.camPixelsCache = null;
+        this.lumaMap = new Float32Array(64 * 64);
+        this.camPixelsCache = new Uint8ClampedArray(64 * 64 * 4);
         this.webglReadCtx = null;
     }
 
@@ -36,7 +37,8 @@ window.OptoRackRenderLoop = class {
     }
 
     tick() {
-        const { cDsp, camRef, bpmRef, synthsRef, fxModulesRef, cablesRef, sharedStateRef, canvasFg, scanCanvas, vRef, worldRef, glContainerRef, disruptCursor, updateParam } = this.config;
+        try {
+            const { cDsp, camRef, bpmRef, synthsRef, fxModulesRef, cablesRef, sharedStateRef, canvasFg, scanCanvas, vRef, worldRef, glContainerRef, disruptCursor, updateParam } = this.config;
         const actx = cDsp.current?.actx;
         const ctActx = actx ? actx.currentTime : 0;
         const sc = window.studioScale || 1;
@@ -94,10 +96,9 @@ window.OptoRackRenderLoop = class {
         const DH = window.DH || 64;
 
         let synthPixels = this.processLuma(scanCanvas, vRef, DW, DH);
-        const lumaMap = new Float32Array(DW * DH);
         for (let i = 0; i < DW * DH; i++) {
             let luma = (synthPixels[i * 4] * 0.299 + synthPixels[i * 4 + 1] * 0.587 + synthPixels[i * 4 + 2] * 0.114) / 255.0;
-            lumaMap[i] = Math.pow(luma, 1.5);
+            this.lumaMap[i] = Math.pow(luma, 1.5);
         }
         sharedStateRef.current.pixels = synthPixels;
 
@@ -118,23 +119,29 @@ window.OptoRackRenderLoop = class {
         synths.forEach(stateObj => {
             const dspObj = cDsp.current.modules[stateObj.id];
             if (!dspObj) return;
-            this.processSynthDSP(dspObj, lumaMap, ctActx, beatDelta, cablesRef, DW, DH);
+            this.processSynthDSP(dspObj, this.lumaMap, ctActx, beatDelta, cablesRef, DW, DH);
         });
 
         // ── CABLE PHYSICS & DRAWING ──────────────────────────────────────────
         this.drawCables(fgCtx, cw, ch, dpr, cablesRef, camRef.current, disruptCursor.current);
+        } catch (e) {
+            console.error("OptoRack Critical Render Error:", e);
+            this.stop();
+            if (window.showOptoError) window.showOptoError(e.message);
+        }
     }
 
     processLuma(scanCanvas, vRef, DW, DH) {
-        if (!scanCanvas.current) return new Uint8ClampedArray(DW * DH * 4);
+        if (!scanCanvas.current) return this.camPixelsCache;
         const scanCtx = scanCanvas.current.getContext('2d', { willReadFrequently: true });
 
         if (this.frameCount % 2 === 0 && vRef.current && vRef.current.readyState >= 3) {
             scanCtx.drawImage(vRef.current, 0, 0, DW, DH);
-            this.camPixelsCache = scanCtx.getImageData(0, 0, DW, DH).data;
+            const data = scanCtx.getImageData(0, 0, DW, DH).data;
+            this.camPixelsCache.set(data);
         }
 
-        let pixels = this.camPixelsCache || new Uint8ClampedArray(DW * DH * 4);
+        let pixels = this.camPixelsCache;
 
         if (window.optorackWebGLCanvas) {
             if (!this.webglReadCtx) {
@@ -361,11 +368,17 @@ window.OptoRackRenderLoop = class {
                     const b = c._physics[i + 1];
                     const dx = b.x - a.x;
                     const dy = b.y - a.y;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-                    const diff = (targetLen - dist) / dist * stiffness;
-                    const offset = { x: dx * diff * 0.5, y: dy * diff * 0.5 };
-                    if (i > 0) { a.x -= offset.x; a.y -= offset.y; }
-                    if (i < segments - 2) { b.x += offset.x; b.y += offset.y; }
+                    const dist = Math.sqrt(dx * dx + dy * dy) || 0.001;
+                    const diff = ((targetLen - dist) / dist) * stiffness;
+                    
+                    // Clamp max adjustment per iteration to prevent numeric explosion
+                    const clampedDiff = Math.max(-0.5, Math.min(0.5, diff));
+                    
+                    const offsetX = dx * clampedDiff * 0.5;
+                    const offsetY = dy * clampedDiff * 0.5;
+                    
+                    if (i > 0) { a.x -= offsetX; a.y -= offsetY; }
+                    if (i < segments - 2) { b.x += offsetX; b.y += offsetY; }
                 }
             }
 

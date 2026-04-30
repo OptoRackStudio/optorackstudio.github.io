@@ -72,7 +72,7 @@ const LobbyScreen = ({ onStart, savedProjects = [], onLoadProject }) => {
     ];
 
     return (
-        <div className="opto-lobby-root">
+        <div className="opto-lobby-root" style={{ touchAction: 'none' }}>
             <div className="cyber-grid" />
             <div className="vignette" />
             <div className="scanline" />
