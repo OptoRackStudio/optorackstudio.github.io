@@ -325,7 +325,7 @@ function App() {
             
             // On very small height (landscape mobile), we might need to scale down further
             if (h < 500) {
-                factor = Math.min(factor, h / 600);
+                factor = Math.min(factor, Math.max(0.45, h / 600));
             }
 
             setStudioScale(factor);
@@ -1336,8 +1336,7 @@ function App() {
                 transformOrigin: '0 0', 
                 WebkitTransformOrigin: '0 0',
                 width: `${100 / studioScale}%`, 
-                height: `${100 / studioScale}%`,
-                pointerEvents: 'none'
+                height: `${100 / studioScale}%`
             }}>
                 {/* Wires Canvas - Z-Index 30 puts it behind the modules (which are 40+) */}
                 <canvas ref={canvasFg} className="wires-canvas" />
@@ -1547,7 +1546,7 @@ function App() {
                         {/* Floating Master IO removed per user request to avoid duplication */}
 
                         {isBrowserOpen && (
-                            <div className="browser-overlay" onPointerDown={(e) => e.stopPropagation()}>
+                            <div className="browser-overlay" style={{ pointerEvents: 'auto' }} onPointerDown={(e) => e.stopPropagation()}>
                                 <div className="browser-sidebar">
                                     <div className="lobby-logo" style={{ marginBottom: '60px' }}>
                                         OPTO<span className="cyan">RACK</span>
@@ -1617,7 +1616,7 @@ function App() {
                         )}
 
                         {isVisualsBrowserOpen && (
-                            <div className="browser-overlay visuals-overlay" onPointerDown={(e) => e.stopPropagation()}>
+                            <div className="browser-overlay visuals-overlay" style={{ pointerEvents: 'auto' }} onPointerDown={(e) => e.stopPropagation()}>
                                 <div className="browser-sidebar">
                                     <div className="lobby-logo" style={{ marginBottom: '60px' }}>
                                         OPTO<span className="cyan">RACK DEMO</span>
@@ -1760,7 +1759,7 @@ function App() {
                             </div>
                         )}
 
-                        <div className="projects-panel" onPointerDown={(e) => e.stopPropagation()} style={{ transform: isProjectsOpen ? 'translateX(0)' : 'translateX(100%)' }}>
+                        <div className="projects-panel" onPointerDown={(e) => e.stopPropagation()} style={{ transform: isProjectsOpen ? 'translateX(0)' : 'translateX(100%)', pointerEvents: 'auto' }}>
                             <div className="projects-header">
                                 <div>
                                     <div className="projects-title">PROJECTS///</div>
