@@ -44,8 +44,14 @@ const WavetablePanelDisplay = ({ mod, color, updateParam }) => {
         let animationId;
         const draw = () => {
             animationId = requestAnimationFrame(draw);
-            if (!mod || !mod.currentTopo || !mod.params) return;
+            const dsp = window.OptoRackApp?.cDsp?.current?.modules[mod.id];
+            if (!dsp || !dsp.currentTopo || !mod.params) return;
             ctx.clearRect(0, 0, w, h);
+            
+            // Use dsp object for real-time data
+            const currentTopo = dsp.currentTopo;
+            const scanPhase = dsp.scanPhase || 0;
+            const analyser = dsp.analyser;
             
             const isMobile = window.innerWidth < 900;
             if (window.optorackWebGLCanvas && !isMobile) {
@@ -82,7 +88,7 @@ const WavetablePanelDisplay = ({ mod, color, updateParam }) => {
                     const mapY = Math.floor(read_y_norm * (dh - 1));
                     
                     const idx = (dh - 1 - mapY) * dw + mapX;
-                    let val = (mod.currentTopo[idx] || 0) * sens * ampScl;
+                    let val = (currentTopo[idx] || 0) * sens * ampScl;
                     if (val > 0.02) { 
                         const x3d = (x - resX/2) * stepX; const z3d = (z - resZ/2) * stepZ; const y3d = -Math.min(val * 100, 150); 
                         const scale3D = fov / Math.max(10, z3d + fov);
@@ -92,7 +98,34 @@ const WavetablePanelDisplay = ({ mod, color, updateParam }) => {
                 }
             }
             
-            // Draw Scanline & Oscilloscope logic...
+            // ── SCANLINE ────────────────────────────────────────────────────
+            const scanX = scanPhase * (w * 0.8) - (w * 0.4);
+            ctx.beginPath();
+            ctx.moveTo(scanX, -h/2); ctx.lineTo(scanX, h/2);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.setLineDash([5, 5]); ctx.stroke(); ctx.setLineDash([]);
+
+            // ── OSCILLOSCOPE (Real-time output) ─────────────────────────────
+            if (analyser) {
+                const buffer = new Float32Array(analyser.fftSize);
+                analyser.getFloatTimeDomainData(buffer);
+                ctx.beginPath();
+                ctx.strokeStyle = color; ctx.lineWidth = 2;
+                ctx.shadowBlur = 10; ctx.shadowColor = color;
+                
+                const sliceWidth = (w * 0.8) / buffer.length;
+                let ox = -w * 0.4;
+                for (let i = 0; i < buffer.length; i++) {
+                    const v = buffer[i] * 80;
+                    const oy = v + h * 0.3; // Offset to bottom area
+                    if (i === 0) ctx.moveTo(ox, oy);
+                    else ctx.lineTo(ox, oy);
+                    ox += sliceWidth;
+                }
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+            }
+            
             ctx.restore();
         };
         draw();

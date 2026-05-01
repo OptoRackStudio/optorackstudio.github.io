@@ -490,6 +490,31 @@ const EnvVisualizer = ({ mod }) => {
                 .filter(([px]) => px >= margin && px <= xRel)
                 .forEach(([px, py]) => { ctx.beginPath(); ctx.arc(px, py, 2.5, 0, Math.PI*2); ctx.fill(); });
             
+            // ── REAL-TIME PLAYHEAD ──────────────────────────────────────────
+            const dsp = window.OptoRackApp?.cDsp?.current?.modules[mod.id];
+            const dspState = dsp?.state;
+            if (dspState && dspState.lastTrig > 0) {
+                const elapsed = (performance.now() - dspState.lastTrig) / 1000;
+                if (elapsed < totalTime) {
+                    const px = margin + (elapsed / totalTime) * drawW;
+                    ctx.beginPath();
+                    ctx.moveTo(px, 0); ctx.lineTo(px, h);
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+                    ctx.lineWidth = 1; ctx.stroke();
+                    
+                    // Glow dot on playhead
+                    let py = h - 2;
+                    if (elapsed < atk) py = 4 + (1 - elapsed / atk) * (h - 6);
+                    else if (elapsed < atk + safeHold) py = 4;
+                    else if (elapsed < atk + safeHold + dec) py = 4 + ((elapsed - atk - safeHold) / dec) * (ySus - 4);
+                    else py = ySus;
+                    
+                    ctx.beginPath(); ctx.arc(px, py, 4, 0, Math.PI*2);
+                    ctx.fillStyle = '#FFF'; ctx.shadowBlur = 10; ctx.shadowColor = '#00E5FF';
+                    ctx.fill(); ctx.shadowBlur = 0;
+                }
+            }
+            
             aniId = requestAnimationFrame(draw);
         };
         draw(); return () => cancelAnimationFrame(aniId);

@@ -86,6 +86,9 @@ function App() {
     });
 
     const [, setRenderTrigger] = useState(0);
+    useEffect(() => {
+        window.OptoRackApp = { cDsp, studioScaleRef };
+    }, []);
     const [isRecording, setIsRecording] = useState(false);
     const [assignMode, setAssignMode] = useState(null);
     const [wtPresets, setWtPresets] = useState([
@@ -1060,7 +1063,7 @@ function App() {
             cDsp, camRef, bpmRef, synthsRef, fxModulesRef, cablesRef, sharedStateRef,
             canvasFg, scanCanvas, vRef, worldRef, glContainerRef,
             disruptCursor, updateParam,
-            dragCableRef, wireColor: wireColorRef
+            dragCableRef, droppedCablesRef, wireColor: wireColorRef
         });
 
         renderer.start();

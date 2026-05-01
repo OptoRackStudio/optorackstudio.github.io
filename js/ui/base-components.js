@@ -193,6 +193,11 @@ const ModuleJack = ({id, n, t=false, type="cv", active=false, patchedColor, domR
                        boxShadow: glow 
                    }}>
                        <div className="jack-inner-barrel" />
+                       {active && (
+                           <div className="jack-plug-head" style={{ backgroundColor: innerColor }}>
+                               <div className="jack-plug-cable" style={{ backgroundColor: innerColor }} />
+                           </div>
+                       )}
                        <div className="jack-glow-point" style={{ 
                            backgroundColor: active ? '#FFF' : 'transparent',
                            opacity: active ? 1 : 0 

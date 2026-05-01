@@ -215,11 +215,12 @@ window.OptoRackAudio = {
         const lfoDepth = actx.createGain(); const lfoOut = actx.createGain();
         lfo.connect(lfoSmooth); lfoSmooth.connect(lfoDepth); lfoDepth.connect(lfoOut); lfo.start();
 
-        const evVCA = actx.createGain(); const panner = actx.createStereoPanner(); const audioOut = actx.createGain();
+        const evVCA = actx.createGain(); evVCA.gain.value = 0; const panner = actx.createStereoPanner(); const audioOut = actx.createGain();
         const analyser = actx.createAnalyser(); analyser.fftSize = 512;
         moLPF1.connect(moLPF2); moLPF2.connect(postFilterMix); postFilterMix.connect(evVCA); evVCA.connect(panner); panner.connect(audioOut); audioOut.connect(analyser);
 
-        const envCVOut = actx.createGain(); const topoCVOut = actx.createGain();
+        const envCVOut = actx.createConstantSource(); envCVOut.start(); envCVOut.offset.value = 0;
+        const topoCVOut = actx.createConstantSource(); topoCVOut.start(); topoCVOut.offset.value = 0;
         const inFlt = actx.createGain(); inFlt.gain.value = 5000; inFlt.connect(moLPF1.frequency); inFlt.connect(moLPF2.frequency);
         const inPitch = actx.createGain(); unisonOscs.forEach(osc => inPitch.connect(osc.detune)); inPitch.connect(subOsc.detune);
         const inTrig = actx.createGain(); const inWt = actx.createGain();

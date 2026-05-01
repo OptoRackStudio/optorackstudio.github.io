@@ -38,7 +38,10 @@ window.OptoRackRenderLoop = class {
 
     tick() {
         try {
-            const { cDsp, camRef, bpmRef, synthsRef, fxModulesRef, cablesRef, sharedStateRef, canvasFg, scanCanvas, vRef, worldRef, glContainerRef, disruptCursor, updateParam } = this.config;
+            const { 
+                cDsp, camRef, bpmRef, synthsRef, fxModulesRef, cablesRef, droppedCablesRef, sharedStateRef, 
+                canvasFg, scanCanvas, vRef, worldRef, glContainerRef, disruptCursor, updateParam, dragCableRef
+            } = this.config;
         const actx = cDsp.current?.actx;
         const ctActx = actx ? actx.currentTime : 0;
         const sc = window.studioScale || 1;
@@ -48,7 +51,20 @@ window.OptoRackRenderLoop = class {
         const canvas = canvasFg.current;
         if (!canvas) return;
         const fgCtx = canvas.getContext('2d');
-        if (!fgCtx) return;
+        const DW = window.DW || 64;
+        const DH = window.DH || 64;
+
+        // Ensure buffers match current resolution to prevent RangeError
+        if (this.lumaMap.length !== DW * DH) {
+            this.lumaMap = new Float32Array(DW * DH);
+            this.camPixelsCache = new Uint8ClampedArray(DW * DH * 4);
+            if (this.webglReadCtx) {
+                this.webglReadCtx.canvas.width = DW;
+                this.webglReadCtx.canvas.height = DH;
+            }
+        }
+
+        if (!this.lastTime) this.lastTime = performance.now();
 
         // Resize canvas to unscaled dimensions
         if (canvas.width !== Math.floor(cw * dpr)) {
@@ -91,16 +107,8 @@ window.OptoRackRenderLoop = class {
         }
 
         // ── LUMA PROCESSING ──────────────────────────────────────────────────
-        // (Assuming DW and DH are globally defined dimensions)
-        const DW = window.DW || 64; 
-        const DH = window.DH || 64;
-
-        let synthPixels = this.processLuma(scanCanvas, vRef, DW, DH);
-        for (let i = 0; i < DW * DH; i++) {
-            let luma = (synthPixels[i * 4] * 0.299 + synthPixels[i * 4 + 1] * 0.587 + synthPixels[i * 4 + 2] * 0.114) / 255.0;
-            this.lumaMap[i] = Math.pow(luma, 1.5);
-        }
-        sharedStateRef.current.pixels = synthPixels;
+        this.processLuma(scanCanvas, vRef, DW, DH);
+        sharedStateRef.current.pixels = this.camPixelsCache;
 
         // ── DSP & LFO SYNC ───────────────────────────────────────────────────
         const now = performance.now();
@@ -123,7 +131,7 @@ window.OptoRackRenderLoop = class {
         });
 
         // ── CABLE PHYSICS & DRAWING ──────────────────────────────────────────
-        this.drawCables(fgCtx, cw, ch, dpr, cablesRef, camRef.current, disruptCursor.current);
+        this.drawCables(fgCtx, cw, ch, dpr, cablesRef, droppedCablesRef, camRef.current, disruptCursor.current);
         } catch (e) {
             console.error("OptoRack Critical Render Error:", e);
             this.stop();
@@ -132,26 +140,35 @@ window.OptoRackRenderLoop = class {
     }
 
     processLuma(scanCanvas, vRef, DW, DH) {
-        if (!scanCanvas.current) return this.camPixelsCache;
+        if (!scanCanvas.current) return this.lumaMap;
         const scanCtx = scanCanvas.current.getContext('2d', { willReadFrequently: true });
 
         if (this.frameCount % 2 === 0 && vRef.current && vRef.current.readyState >= 3) {
             scanCtx.drawImage(vRef.current, 0, 0, DW, DH);
-            const data = scanCtx.getImageData(0, 0, DW, DH).data;
-            this.camPixelsCache.set(data);
+            const imageData = scanCtx.getImageData(0, 0, DW, DH);
+            const data = imageData.data;
+            this.camPixelsCache.set(data); // Save raw for other visualizers
+            for (let i = 0; i < data.length; i += 4) {
+                const luma = (data[i] + data[i + 1] + data[i + 2]) / 765;
+                this.lumaMap[i / 4] = Math.pow(luma, 1.5);
+            }
         }
-
-        let pixels = this.camPixelsCache;
-
+        
         if (window.optorackWebGLCanvas) {
             if (!this.webglReadCtx) {
                 const c = document.createElement('canvas'); c.width = DW; c.height = DH;
                 this.webglReadCtx = c.getContext('2d', { willReadFrequently: true });
             }
             this.webglReadCtx.drawImage(window.optorackWebGLCanvas, 0, 0, DW, DH);
-            pixels = this.webglReadCtx.getImageData(0, 0, DW, DH).data;
+            const webglData = this.webglReadCtx.getImageData(0, 0, DW, DH).data;
+            this.camPixelsCache.set(webglData); // Mix WebGL into the pixel cache
+            for (let i = 0; i < webglData.length; i += 4) {
+                const luma = (webglData[i] + webglData[i + 1] + webglData[i + 2]) / 765;
+                // Additive mix of WebGL luma into our map
+                this.lumaMap[i / 4] = Math.max(this.lumaMap[i / 4], Math.pow(luma, 1.5));
+            }
         }
-        return pixels;
+        return this.lumaMap;
     }
 
     updateModuleLogic(mod, dt, ctActx, bpm, updateParam) {
@@ -172,12 +189,16 @@ window.OptoRackRenderLoop = class {
             });
         } else if (mod.type === 'FX_RHYTHM') {
             const stepDuration = beatInterval / mod.params.rate;
-            if (ctActx >= mod.state.lastTime + stepDuration) {
+            if (!mod.state.lastTime) mod.state.lastTime = ctActx - stepDuration;
+            while (mod.state.lastTime + stepDuration <= ctActx + 0.05) {
+                const schedTime = mod.state.lastTime + stepDuration;
+                mod.state.lastTime = schedTime;
                 mod.state.step = (mod.state.step + 1) % 16;
-                mod.state.lastTime = ctActx;
                 const isActive = mod.params.steps[mod.state.step];
                 const targetGain = isActive ? 1.0 : (1.0 - mod.params.depth);
-                mod.nodes.vca.gain.setTargetAtTime(targetGain, ctActx, mod.params.smooth);
+                if (mod.nodes?.vca?.gain) {
+                    mod.nodes.vca.gain.setTargetAtTime(targetGain, schedTime, mod.params.smooth || 0.02);
+                }
             }
         } else if (mod.type === 'FX_SIDECHAIN') {
             const stepDuration = beatInterval / mod.params.rate;
@@ -195,36 +216,44 @@ window.OptoRackRenderLoop = class {
             }
         } else if (mod.type === 'PROB_SEQ') {
             const stepDuration = beatInterval / mod.params.rate;
-            if (ctActx >= mod.state.lastTime + stepDuration) {
+            if (!mod.state.lastTime) mod.state.lastTime = ctActx - stepDuration;
+            
+            while (mod.state.lastTime + stepDuration <= ctActx + 0.05) {
+                const schedTime = mod.state.lastTime + stepDuration;
+                mod.state.lastTime = schedTime;
                 mod.state.step = (mod.state.step + 1) % 16;
                 mod.currentStep = mod.state.step;
-                mod.state.lastTime = ctActx;
 
                 const isActive = mod.params.steps[mod.state.step];
                 const stepProb = (mod.params.stepsProb && mod.params.stepsProb[mod.state.step] !== undefined) ? mod.params.stepsProb[mod.state.step] : mod.params.prob;
+                
                 if (isActive && Math.random() <= stepProb) {
-                    // Trigger Audio Graph Nodes
-                    mod.nodes.seqOut.offset.cancelScheduledValues(ctActx);
-                    mod.nodes.seqOut.offset.setValueAtTime(1, ctActx);
-                    mod.nodes.seqOut.offset.setValueAtTime(0, ctActx + stepDuration * mod.params.gate);
+                    // Precise Audio Scheduling
+                    if (mod.nodes?.seqOut?.offset) {
+                        mod.nodes.seqOut.offset.cancelScheduledValues(schedTime);
+                        mod.nodes.seqOut.offset.setValueAtTime(1, schedTime);
+                        mod.nodes.seqOut.offset.setValueAtTime(0, schedTime + stepDuration * mod.params.gate);
+                    }
 
-                    // Trigger Logic Flags (for Photosynth internal triggers)
+                    // Precise Trigger Dispatch
                     const cables = this.config.cablesRef.current;
                     cables.forEach(c => {
                         if (c.srcMod === mod.id && (c.srcPort === 'TRIG' || c.srcPort === 'OUT')) {
                             const destMod = this.config.cDsp.current.modules[c.destMod];
-                            if (destMod) destMod.triggerFlag = true;
+                            if (destMod) destMod.triggerTime = schedTime;
                         }
                     });
 
-                    // Pitch Generation
+                    // Pitch Generation & Scheduling
                     const scaleRef = this.config.sharedStateRef?.current?.scale || 'MINOR';
                     const SCALES = window.SCALES || { MINOR: [0, 2, 3, 5, 7, 8, 10] };
                     const scaleArr = SCALES[scaleRef] || SCALES['MINOR'];
                     const randomNote = scaleArr[Math.floor(Math.random() * scaleArr.length)];
-                    const octave = Math.floor(Math.random() * 3) - 1; // -1, 0, 1
+                    const octave = Math.floor(Math.random() * 3) - 1;
                     const pitchVal = randomNote + (octave * 12);
-                    mod.nodes.pitchOut.offset.setValueAtTime(pitchVal, ctActx);
+                    if (mod.nodes?.pitchOut?.offset) {
+                        mod.nodes.pitchOut.offset.setValueAtTime(pitchVal, schedTime);
+                    }
                 }
             }
         }
@@ -242,15 +271,25 @@ window.OptoRackRenderLoop = class {
 
         const isExtTrig = cablesRef.current.some(c => c.destMod === dspObj.id && c.destPort === 'TRIG');
         let shouldTrigger = false;
+        let schedTime = ctActx;
         let internalRate = dspObj.params.trigRate || 1;
+        const trigInterval = beatInterval / internalRate;
 
         if (!isExtTrig) {
+            if (!dspObj.curTrigT || dspObj.curTrigT < ctActx - 1) dspObj.curTrigT = ctActx;
             if (ctActx >= dspObj.curTrigT) {
                 shouldTrigger = true;
-                dspObj.curTrigT = ctActx + (beatInterval / internalRate);
+                schedTime = dspObj.curTrigT;
+                dspObj.curTrigT += trigInterval;
+                if (dspObj.curTrigT < ctActx) dspObj.curTrigT = ctActx + trigInterval;
             }
+        } else if (dspObj.triggerTime > 0 && ctActx >= dspObj.triggerTime - 0.05) {
+            shouldTrigger = true;
+            schedTime = dspObj.triggerTime;
+            dspObj.triggerTime = 0;
         } else if (dspObj.triggerFlag) {
             shouldTrigger = true;
+            schedTime = ctActx;
             dspObj.triggerFlag = false;
         }
 
@@ -263,16 +302,16 @@ window.OptoRackRenderLoop = class {
                 const gateLength = (beatInterval / (isExtTrig ? 4 : internalRate)) * 0.85;
                 const paramsToUpdate = [];
                 if (dspObj.env?.gain) paramsToUpdate.push(dspObj.env.gain);
-                if (dspObj.outNodes?.ENV?.gain) paramsToUpdate.push(dspObj.outNodes.ENV.gain);
+                if (dspObj.outNodes?.ENV?.offset) paramsToUpdate.push(dspObj.outNodes.ENV.offset);
 
                 paramsToUpdate.forEach(param => {
-                    param.cancelScheduledValues(ctActx);
-                    param.setValueAtTime(param.value || 0.0001, ctActx);
+                    param.cancelScheduledValues(schedTime);
+                    param.setValueAtTime(param.value || 0.0001, schedTime);
                     
-                    const tAtk = ctActx + Math.max(0.002, atk);
+                    const tAtk = schedTime + Math.max(0.002, atk);
                     const tHold = tAtk + hold;
                     const tDec = tHold + Math.max(0.002, dec);
-                    const tSus = Math.max(ctActx + gateLength - Math.max(0.002, rel), tDec + 0.002);
+                    const tSus = Math.max(schedTime + gateLength - Math.max(0.002, rel), tDec + 0.002);
                     const tRel = tSus + Math.max(0.002, rel);
 
                     param.linearRampToValueAtTime(1.0, tAtk);
@@ -339,14 +378,16 @@ window.OptoRackRenderLoop = class {
         }
     }
 
-    drawCables(ctx, cw, ch, dpr, cablesRef, cam, mouse) {
+    drawCables(ctx, cw, ch, dpr, cablesRef, droppedCablesRef, cam, mouse) {
         ctx.clearRect(0, 0, cw, ch);
         if (!window.moduleControllers) return;
 
         const dt = 1 / 60;
-        const gravity = 0.65; // Increased for more natural sag
-        const stiffness = 0.75; // Tuned for better physics response
-        const segments = 20; // Silky smooth curves
+        const gravity = 0.65;
+        const stiffness = 0.75;
+        const segments = 20;
+
+        // Process active cables
 
         cablesRef.current.forEach(c => {
             if (!c._physics) {
@@ -499,6 +540,83 @@ window.OptoRackRenderLoop = class {
                 ctx.lineCap = 'round';
                 ctx.stroke();
             }
+        }
+
+        // ── DROPPED CABLES (Falling away) ────────────────────────────────────
+        if (droppedCablesRef && droppedCablesRef.current) {
+            const now = performance.now();
+            droppedCablesRef.current = droppedCablesRef.current.filter(dc => now - dc.dropTime < 2000);
+            
+            droppedCablesRef.current.forEach(dc => {
+                const age = (now - dc.dropTime) / 2000;
+                const ctrl = window.moduleControllers[dc.modId];
+                if (!ctrl) return;
+                
+                const portPos = ctrl.getWorldPortPos(dc.portId, dc.isInput);
+                if (!portPos) return;
+                
+                const p1 = { x: portPos.x * cam.z + cam.x, y: portPos.y * cam.z + cam.y };
+                // Gravity fall for the loose end
+                const fallX = dc.dropX + (age * 50);
+                const fallY = dc.dropY + (age * age * 800);
+                const p2 = { x: fallX, y: fallY };
+
+                ctx.beginPath();
+                ctx.moveTo(p1.x, p1.y);
+                const cp1 = { x: p1.x, y: p1.y + 150 * cam.z };
+                const cp2 = { x: p2.x, y: p2.y + 150 * cam.z };
+                ctx.bezierCurveTo(cp1.x, cp1.y, cp2.x, cp2.y, p2.x, p2.y);
+                
+                ctx.strokeStyle = `rgba(150, 150, 150, ${1.0 - age})`;
+                ctx.lineWidth = 4 * cam.z;
+                ctx.lineCap = 'round';
+                ctx.stroke();
+            });
+        }
+
+        // ── JACK FEEDBACK (Hover & Snapping) ─────────────────────────────────
+        if (dragRef) {
+            let closestJack = null;
+            let minDist = 40;
+            
+            Object.keys(window.OptoRackJacks || {}).forEach(key => {
+                const el = window.OptoRackJacks[key];
+                if (!el) return;
+                const rect = el.getBoundingClientRect();
+                const jx = (rect.left + rect.width / 2);
+                const jy = (rect.top + rect.height / 2);
+                const dx = mouse.x - jx;
+                const dy = mouse.y - jy;
+                const d = Math.sqrt(dx * dx + dy * dy);
+                
+                if (d < minDist) {
+                    minDist = d;
+                    closestJack = el;
+                }
+                el.classList.remove('jack-highlight');
+            });
+            
+            if (closestJack) {
+                closestJack.classList.add('jack-highlight');
+                // Subtle snap visual - draw a glow circle around the target jack
+                const rect = closestJack.getBoundingClientRect();
+                const jx = (rect.left + rect.width / 2) / (window.studioScale || 1);
+                const jy = (rect.top + rect.height / 2) / (window.studioScale || 1);
+                
+                ctx.beginPath();
+                ctx.arc(jx, jy, 15 * cam.z, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(0, 229, 255, 0.3)';
+                ctx.fill();
+                ctx.strokeStyle = '#00E5FF';
+                ctx.lineWidth = 2 * cam.z;
+                ctx.stroke();
+            }
+        } else if (window.OptoRackJacks) {
+            // Ensure highlights are cleared when not dragging
+            Object.keys(window.OptoRackJacks).forEach(key => {
+                const el = window.OptoRackJacks[key];
+                if (el) el.classList.remove('jack-highlight');
+            });
         }
     }
 };
