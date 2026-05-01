@@ -193,6 +193,40 @@ window.OptoRackRenderLoop = class {
                 } catch (e) { }
                 mod.state.nextScheduleTime += stepDuration;
             }
+        } else if (mod.type === 'PROB_SEQ') {
+            const stepDuration = beatInterval / mod.params.rate;
+            if (ctActx >= mod.state.lastTime + stepDuration) {
+                mod.state.step = (mod.state.step + 1) % 16;
+                mod.currentStep = mod.state.step;
+                mod.state.lastTime = ctActx;
+
+                const isActive = mod.params.steps[mod.state.step];
+                const stepProb = (mod.params.stepsProb && mod.params.stepsProb[mod.state.step] !== undefined) ? mod.params.stepsProb[mod.state.step] : mod.params.prob;
+                if (isActive && Math.random() <= stepProb) {
+                    // Trigger Audio Graph Nodes
+                    mod.nodes.seqOut.offset.cancelScheduledValues(ctActx);
+                    mod.nodes.seqOut.offset.setValueAtTime(1, ctActx);
+                    mod.nodes.seqOut.offset.setValueAtTime(0, ctActx + stepDuration * mod.params.gate);
+
+                    // Trigger Logic Flags (for Photosynth internal triggers)
+                    const cables = this.config.cablesRef.current;
+                    cables.forEach(c => {
+                        if (c.srcMod === mod.id && (c.srcPort === 'TRIG' || c.srcPort === 'OUT')) {
+                            const destMod = this.config.cDsp.current.modules[c.destMod];
+                            if (destMod) destMod.triggerFlag = true;
+                        }
+                    });
+
+                    // Pitch Generation
+                    const scaleRef = this.config.sharedStateRef?.current?.scale || 'MINOR';
+                    const SCALES = window.SCALES || { MINOR: [0, 2, 3, 5, 7, 8, 10] };
+                    const scaleArr = SCALES[scaleRef] || SCALES['MINOR'];
+                    const randomNote = scaleArr[Math.floor(Math.random() * scaleArr.length)];
+                    const octave = Math.floor(Math.random() * 3) - 1; // -1, 0, 1
+                    const pitchVal = randomNote + (octave * 12);
+                    mod.nodes.pitchOut.offset.setValueAtTime(pitchVal, ctActx);
+                }
+            }
         }
     }
 

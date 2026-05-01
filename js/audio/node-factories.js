@@ -109,6 +109,22 @@ window.OptoRackAudio = {
             mod.params = overrideParams || { depth: 1.0, curveId: 0, rate: 1.0 };
             mod.state = { nextScheduleTime: 0, progress: 0 };
         }
+        else if (type === 'PROB_SEQ') {
+            const seqOut = actx.createConstantSource(); seqOut.offset.value = 0; seqOut.start();
+            const seqGain = actx.createGain(); seqGain.gain.value = 1; seqOut.connect(seqGain);
+            const pitchOut = actx.createConstantSource(); pitchOut.offset.value = 1; pitchOut.start();
+            const pitchGain = actx.createGain(); pitchGain.gain.value = 1; pitchOut.connect(pitchGain);
+            mod.outNodes = { TRIG: seqGain, PITCH: pitchGain }; mod.nodes = { seqOut, pitchOut };
+            mod.params = overrideParams || { prob: 0.8, rate: 4, gate: 0.5, steps: Array(16).fill(true), stepsProb: Array(16).fill(0.8) };
+            mod.state = { step: 0, lastTime: 0 }; mod.currentStep = 0;
+        }
+        else if (type === 'FX_RHYTHM') {
+            const rIn = actx.createGain(); const rOut = actx.createGain(); const vca = actx.createGain();
+            rIn.connect(vca); vca.connect(rOut);
+            mod.inNodes = { IN: rIn }; mod.outNodes = { OUT: rOut }; mod.nodes = { vca };
+            mod.params = overrideParams || { depth: 1.0, rate: 4, smooth: 0.05, steps: Array(16).fill(true) };
+            mod.state = { step: 0, lastTime: 0 };
+        }
         else if (type === 'FX_OTT') {
             const ottIn = actx.createGain(); const ottOut = actx.createGain();
             const dry = actx.createGain(); const wet = actx.createGain();

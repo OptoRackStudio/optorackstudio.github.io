@@ -440,10 +440,11 @@ function App() {
 
         // PRO LIMITER: -0.3dB True Peak ceiling, tight lookahead simulation
         const brickwall = actx.createDynamicsCompressor(); brickwall.threshold.value = -0.3; brickwall.ratio.value = 20; brickwall.attack.value = 0.001; brickwall.release.value = 0.080;
+        const masterMakeup = actx.createGain(); masterMakeup.gain.value = 1.0;
         const finalClamp = actx.createWaveShaper(); finalClamp.curve = makeClampCurve(0.99);
 
         masterVol.connect(masterHPF); masterHPF.connect(masterTilt); masterTilt.connect(lowShelf); lowShelf.connect(softClipper);
-        softClipper.connect(brickwall); brickwall.connect(finalClamp); finalClamp.connect(actx.destination);
+        softClipper.connect(brickwall); brickwall.connect(masterMakeup); masterMakeup.connect(finalClamp); finalClamp.connect(actx.destination);
 
         const dest = actx.createMediaStreamDestination(); finalClamp.connect(dest);
         const masterAnalyser = actx.createAnalyser(); masterAnalyser.fftSize = 4096; finalClamp.connect(masterAnalyser);
@@ -451,7 +452,7 @@ function App() {
         cDsp.current.actx = actx; cDsp.current.mOut = masterVol; cDsp.current.dest = dest; cDsp.current.mAnalyser = masterAnalyser;
 
         cDsp.current.modules['MASTER'] = {
-            id: 'MASTER', type: 'MASTER', inNodes: { IN: masterIn }, nodes: { vol: masterVol, hp: masterHPF, tilt: masterTilt, low: lowShelf, soft: softClipper, limit: brickwall, clamp: finalClamp },
+            id: 'MASTER', type: 'MASTER', inNodes: { IN: masterIn }, nodes: { vol: masterVol, hp: masterHPF, tilt: masterTilt, low: lowShelf, soft: softClipper, limit: brickwall, makeup: masterMakeup, clamp: finalClamp },
             params: { vol: 0.0, profile: 'NEUTRAL', softClip: true, limiter: true, mute: false }, baseParams: { vol: 0.0, profile: 'NEUTRAL', softClip: true, limiter: true, mute: false }
         };
 
@@ -540,6 +541,17 @@ function App() {
         }
 
         setViewMode("PATCHING");
+
+        setTimeout(() => {
+            try {
+                const pending = sessionStorage.getItem('optorack_pending_project');
+                if (pending) {
+                    const data = JSON.parse(pending);
+                    sessionStorage.removeItem('optorack_pending_project');
+                    loadProject(data);
+                }
+            } catch (e) { console.warn('Failed to auto-load pending project', e); }
+        }, 100);
     };
 
     const broadcastStructuralChange = () => {
@@ -678,10 +690,18 @@ function App() {
         setResolutionProfile(loadedRes);
         if ((window.OptoRackResolution.currentKey || TWEAKS.defaults.resolutionProfile) !== loadedRes) {
             window.OptoRackResolution.setProfile(loadedRes, true);
+            try {
+                sessionStorage.setItem('optorack_pending_project', JSON.stringify(data));
+            } catch (e) { console.warn('Failed to save pending project to sessionStorage', e); }
             window.location.reload();
             return;
         }
-        if (data.master) Object.keys(data.master).forEach(k => updateParam('MASTER', k, data.master[k]));
+        if (data.master) {
+            const mKeys = Object.keys(data.master);
+            const mOrder = ['vol', 'mute', 'softClip', 'limiter', 'profile'];
+            mKeys.sort((a, b) => mOrder.indexOf(a) - mOrder.indexOf(b));
+            mKeys.forEach(k => updateParam('MASTER', k, data.master[k]));
+        }
         data.fxModules.forEach(f => spawnFX(f.type, f.params, f.x, f.y, f.id, f.w, f.h));
         data.synths.forEach(s => spawnSynth(s.params, s.x, s.y, s.id));
         setTimeout(() => {
@@ -701,45 +721,50 @@ function App() {
     // Architectural Note: Determines module initialization logic and hooks
     // the audio nodes directly into the persistent cDsp graph.
     const spawnFX = (type, overrideParams = null, offsetX = null, offsetY = null, forceId = null, forceW = null, forceH = null) => {
-        const actx = cDsp.current.actx;
-        const id = forceId || `${type}_${Date.now()}`;
+        try {
+            const actx = cDsp.current.actx;
+            if (!actx) return;
+            const id = forceId || `${type}_${Date.now()}`;
 
-        // Use the new Audio Factory
-        let newMod = window.OptoRackAudio.createFX(type, actx, overrideParams);
-        newMod.id = id;
-        newMod.type = type;
+            // Use the new Audio Factory
+            let newMod = window.OptoRackAudio.createFX(type, actx, overrideParams);
+            newMod.id = id;
+            newMod.type = type;
 
-        // Determine visual dimensions
-        let initialW = forceW || 380;
-        let initialH = forceH || 320;
-        if (type === 'FX_EQ') { initialW = 720; initialH = 390; }
-        else if (type === 'FX_PRO_REV') { initialW = 480; initialH = 250; }
-        else if (type === 'FX_SIDECHAIN') { initialW = 480; initialH = 300; }
-        else if (type === 'UTILITY_IO') { initialW = 300; initialH = 200; }
+            // Determine visual dimensions
+            let initialW = forceW || 380;
+            let initialH = forceH || 320;
+            if (type === 'FX_EQ') { initialW = 720; initialH = 390; }
+            else if (type === 'FX_PRO_REV') { initialW = 480; initialH = 250; }
+            else if (type === 'FX_SIDECHAIN') { initialW = 480; initialH = 300; }
+            else if (type === 'UTILITY_IO') { initialW = 300; initialH = 200; }
 
-        cDsp.current.modules[id] = newMod;
+            cDsp.current.modules[id] = newMod;
 
-        if (synths.length + fxModules.length >= (TWEAKS.ranges.maxModules || 50)) {
-            alert("SYSTEM LIMIT REACHED: Maximum 50 modules allowed.");
-            return;
+            if (synths.length + fxModules.length >= (TWEAKS.ranges.maxModules || 50)) {
+                alert("SYSTEM LIMIT REACHED: Maximum 50 modules allowed.");
+                return;
+            }
+
+            Object.keys(newMod.params).forEach(k => updateParamInternal(newMod, k, newMod.params[k]));
+
+            const hasOffset = Number.isFinite(offsetX) && Number.isFinite(offsetY);
+            const slotPos = hasOffset
+                ? { x: offsetX, y: offsetY }
+                : window.SpawnManager.getSpawnPosition(camRef.current, initialW, initialH);
+
+            const catInfo = Object.values(moduleLibraryByCategory).find(cat => cat.items.some(i => i.id === type));
+            const modColor = catInfo ? catInfo.color : '#FFF';
+
+            setFxModules(p => [...p, { id, type, x: slotPos.x, y: slotPos.y, w: initialW, h: initialH, mClr: modColor }]);
+
+            if (!hasOffset) window.OptoRackCamera.focusOnSpawn(camRef.current, slotPos.x, slotPos.y, initialW, initialH);
+
+            setIsBrowserOpen(false);
+            broadcastStructuralChange();
+        } catch (e) {
+            console.error("Failed to spawn FX:", type, e);
         }
-
-        Object.keys(newMod.params).forEach(k => updateParamInternal(newMod, k, newMod.params[k]));
-
-        const hasOffset = Number.isFinite(offsetX) && Number.isFinite(offsetY);
-        const slotPos = hasOffset
-            ? { x: offsetX, y: offsetY }
-            : window.SpawnManager.getSpawnPosition(camRef.current, initialW, initialH);
-
-        const catInfo = Object.values(moduleLibraryByCategory).find(cat => cat.items.some(i => i.id === type));
-        const modColor = catInfo ? catInfo.color : '#FFF';
-
-        setFxModules(p => [...p, { id, type, x: slotPos.x, y: slotPos.y, w: initialW, h: initialH, mClr: modColor }]);
-
-        if (!hasOffset) window.OptoRackCamera.focusOnSpawn(camRef.current, slotPos.x, slotPos.y, initialW, initialH);
-
-        setIsBrowserOpen(false);
-        broadcastStructuralChange();
     };
 
     const spawnSynth = useCallback((overrideParams = null, offsetX = null, offsetY = null, forceId = null, template = 'PHOTON_OSCILLATOR') => {
@@ -1251,12 +1276,30 @@ function App() {
                     const linear = isMuted ? 0 : Math.pow(10, db / 20);
                     mod.nodes.vol.gain.setTargetAtTime(linear, ct, 0.1);
                 }
-                if (param === 'softClip') mod.nodes.soft.curve = val ? makeSoftClipCurve() : null;
+                if (param === 'softClip') {
+                    mod.nodes.soft.curve = val ? window.OptoRackDSP.makeSoftClipCurve() : null;
+                }
                 if (param === 'limiter') {
                     mod.nodes.limit.threshold.setTargetAtTime(val ? -1.0 : 0.0, ct, 0.1);
                     mod.nodes.limit.ratio.setTargetAtTime(val ? 20.0 : 1.0, ct, 0.1);
                     mod.nodes.limit.knee.setTargetAtTime(val ? 10.0 : 0.0, ct, 0.1);
-                    if (mod.nodes.clamp) mod.nodes.clamp.curve = val ? window.makeClampCurve(0.98) : null;
+                    if (mod.nodes.makeup) {
+                        const p = MASTER_PROFILES[mod.params.profile || 'NEUTRAL'];
+                        mod.nodes.makeup.gain.setTargetAtTime(val ? (p.makeup || 1.0) : 1.0, ct, 0.1);
+                    }
+                    if (mod.nodes.clamp) mod.nodes.clamp.curve = val ? window.OptoRackDSP.makeClampCurve(0.99) : null;
+                }
+                if (param === 'profile') {
+                    const p = MASTER_PROFILES[val];
+                    if (p && mod.nodes.limit) {
+                        mod.nodes.limit.threshold.setTargetAtTime(p.threshold, ct, 0.1);
+                        mod.nodes.limit.ratio.setTargetAtTime(p.ratio, ct, 0.1);
+                        mod.nodes.limit.attack.setTargetAtTime(p.attack, ct, 0.1);
+                        mod.nodes.limit.release.setTargetAtTime(p.release, ct, 0.1);
+                        if (mod.nodes.makeup && mod.params.limiter) {
+                            mod.nodes.makeup.gain.setTargetAtTime(p.makeup, ct, 0.1);
+                        }
+                    }
                 }
             } else { updateParamInternal(mod, param, val); }
 
@@ -1379,9 +1422,8 @@ function App() {
                             </select>
                             <div className="sleep-config-note">Higher presets improve visual clarity and reduce noise, with more CPU/GPU cost.</div>
                         </div>
-                        <div className="sleep-start-btn" 
-                            onPointerDown={(e) => e.stopPropagation()}
-                            onClick={(e) => { 
+                        <div className="sleep-start-btn snappier" 
+                            onPointerDown={(e) => {
                                 e.stopPropagation();
                                 INIT_MOTHER_SYSTEM(networkMode); 
                             }}
@@ -1805,61 +1847,57 @@ function App() {
                                 color="#FF0033" 
                                 initialX={window.innerWidth < 900 ? 10 : 20} 
                                 initialY={window.innerWidth < 900 ? 190 : 80} 
-                                initialW={650}
+                                initialW={window.innerWidth < 900 ? (window.innerWidth - 40) : 740}
+                                initialH={window.innerWidth < 900 ? 480 : 280}
                                 onDrag={() => { }} 
                                 isFixed={true}
                             >
-                                <div className="master-layout" style={{ 
-                                    padding: '12px', 
-                                    minWidth: '650px',
-                                    display: 'flex',
-                                    flexDirection: 'row',
-                                    alignItems: 'center',
-                                    gap: '16px'
-                                }}>
-                                    <div className="master-col-left" style={{ paddingRight: '12px' }}>
-                                        <ModuleJack id="MASTER" n="AUD" t={true} type="audio" active={isPatched('MASTER', 'IN', true)} patchedColor={getPatchedColor('MASTER', 'IN', true)} domReg={(d) => updatePipRegistry('MASTER', 'IN', d)} onDown={(e) => handleJackDown(e, 'MASTER', 'IN', true)} onUp={() => handleJackUp('MASTER', 'IN', true)} onDoubleClick={() => clearJackCables('MASTER', 'IN', true)} />
-                                        <div className="master-rec-row">
-                                            <div className="master-rec-btn" onPointerDown={(e) => { e.stopPropagation(); toggleRecording(); }}
-                                                style={{ background: isRecording ? '#FF0033' : '#111', boxShadow: isRecording ? '0 0 10px #FF0033' : 'none', width: '15px', height: '15px' }} />
-                                            <span style={{ fontSize: '8px', color: isRecording ? '#FF0033' : '#666' }}>REC</span>
+                                <div className="master-layout">
+                                    <div className="master-col-left">
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'center' }}>
+                                            <ModuleJack id="MASTER" n="IN" t={true} type="audio" active={isPatched('MASTER', 'IN', true)} patchedColor={getPatchedColor('MASTER', 'IN', true)} domReg={(d) => updatePipRegistry('MASTER', 'IN', d)} onDown={(e) => handleJackDown(e, 'MASTER', 'IN', true)} onUp={() => handleJackUp('MASTER', 'IN', true)} onDoubleClick={() => clearJackCables('MASTER', 'IN', true)} />
+                                            <div className="master-rec-row">
+                                                <div className="master-rec-btn" onPointerDown={(e) => { e.stopPropagation(); toggleRecording(); }}
+                                                    style={{ background: isRecording ? '#FF0033' : '#111', boxShadow: isRecording ? '0 0 15px #FF0033' : 'none' }} />
+                                                <span className="master-rec-label" style={{ color: isRecording ? '#FF0033' : '#666' }}>REC</span>
+                                            </div>
                                         </div>
                                     </div>
 
-                                    <div className="master-col-mid" style={{ padding: '0 12px' }}>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    <div className="master-col-mid">
+                                        <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
                                             <Knob label="OUT GAIN" val={cDsp.current.modules['MASTER'].params.vol} min={-60} max={12.0} step={0.1} def={0.0} onChange={(v) => updateParam('MASTER', 'vol', v)} />
-                                            <div className="master-profile-box">
-                                                <div className="tiny-label" style={{ marginBottom: '4px' }}>MASTER_PROFILE</div>
-                                                <select className="top-select" value={cDsp.current.modules['MASTER'].params.profile || 'NEUTRAL'}
-                                                    onChange={(e) => {
-                                                        const pKey = e.target.value;
-                                                        const p = MASTER_PROFILES[pKey];
-                                                        updateParam('MASTER', 'profile', pKey);
-                                                        // Update actual nodes
-                                                        const limit = cDsp.current.modules['MASTER'].nodes.limit;
-                                                        limit.threshold.setTargetAtTime(p.threshold, cDsp.current.actx.currentTime, 0.05);
-                                                        limit.ratio.setTargetAtTime(p.ratio, cDsp.current.actx.currentTime, 0.05);
-                                                    }}>
-                                                    {Object.keys(MASTER_PROFILES).map(k => <option key={k} value={k}>{k}</option>)}
-                                                </select>
-                                            </div>
-                                            <div className="master-toggle-row" onPointerDown={(e) => { e.stopPropagation(); updateParam('MASTER', 'brickwall', !cDsp.current.modules['MASTER'].params.brickwall); }}>
-                                                <div className="master-toggle-btn" style={{ background: cDsp.current.modules['MASTER'].params.brickwall ? '#00E5FF' : '#111' }} />
-                                                <div className="master-toggle-label">BRICKWALL</div>
-                                            </div>
-                                            <div className="master-toggle-row" onPointerDown={(e) => { e.stopPropagation(); updateParam('MASTER', 'mute', !cDsp.current.modules['MASTER'].params.mute); }}>
-                                                <div className="master-toggle-btn" style={{ background: cDsp.current.modules['MASTER'].params.mute ? '#FF0033' : '#111' }} />
-                                                <div className="master-toggle-label">MUTE</div>
+                                            
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                                <div className="master-profile-box">
+                                                    <div className="tiny-label" style={{ marginBottom: '4px' }}>MASTER_PROFILE</div>
+                                                    <select className="top-select" style={{ width: '100px' }} value={cDsp.current.modules['MASTER'].params.profile || 'NEUTRAL'}
+                                                        onChange={(e) => {
+                                                            updateParam('MASTER', 'profile', e.target.value);
+                                                        }}>
+                                                        {Object.keys(MASTER_PROFILES).map(k => <option key={k} value={k}>{k}</option>)}
+                                                    </select>
+                                                </div>
+
+                                                <div className="master-toggles" style={{ padding: 0, border: 'none' }}>
+                                                    <div className="master-toggle-row" onPointerDown={(e) => { e.stopPropagation(); updateParam('MASTER', 'softClip', !cDsp.current.modules['MASTER'].params.softClip); }}>
+                                                        <div className="master-toggle-btn" style={{ background: cDsp.current.modules['MASTER'].params.softClip ? '#B266FF' : '#111', boxShadow: cDsp.current.modules['MASTER'].params.softClip ? '0 0 10px rgba(178, 102, 255, 0.5)' : 'none' }} />
+                                                        <div className="master-toggle-label">SOFT CLIP</div>
+                                                    </div>
+                                                    <div className="master-toggle-row" onPointerDown={(e) => { e.stopPropagation(); updateParam('MASTER', 'limiter', !cDsp.current.modules['MASTER'].params.limiter); }}>
+                                                        <div className="master-toggle-btn" style={{ background: cDsp.current.modules['MASTER'].params.limiter ? '#00E5FF' : '#111', boxShadow: cDsp.current.modules['MASTER'].params.limiter ? '0 0 10px rgba(0, 229, 255, 0.5)' : 'none' }} />
+                                                        <div className="master-toggle-label">LIMITER</div>
+                                                    </div>
+                                                    <div className="master-toggle-row" onPointerDown={(e) => { e.stopPropagation(); updateParam('MASTER', 'mute', !cDsp.current.modules['MASTER'].params.mute); }}>
+                                                        <div className="master-toggle-btn" style={{ background: cDsp.current.modules['MASTER'].params.mute ? '#FF0033' : '#111', boxShadow: cDsp.current.modules['MASTER'].params.mute ? '0 0 10px rgba(255, 0, 51, 0.5)' : 'none' }} />
+                                                        <div className="master-toggle-label">MUTE</div>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div className="master-col-right" style={{ 
-                                        borderLeft: '1px solid rgba(255,255,255,0.1)', 
-                                        paddingLeft: '12px',
-                                        minWidth: '220px'
-                                    }}>
+                                    <div className="master-col-right">
                                         <SpectrumAnalyzer analyser={cDsp.current.mAnalyser} />
                                         <MasterLoudnessMonitor analyser={cDsp.current.mAnalyser} />
                                     </div>

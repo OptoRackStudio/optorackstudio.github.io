@@ -10,8 +10,14 @@ const SpectrumAnalyzer = ({ analyser }) => {
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
         const dpr = window.devicePixelRatio || 1;
-        const w = 220; const h = 80;
-        canvas.width = w * dpr; canvas.height = h * dpr;
+        
+        // Dynamic sizing based on container
+        const rect = canvas.getBoundingClientRect();
+        const w = rect.width || 220;
+        const h = rect.height || 80;
+        
+        canvas.width = w * dpr; 
+        canvas.height = h * dpr;
         ctx.scale(dpr, dpr);
 
         const dataArray = new Uint8Array(analyser.frequencyBinCount);
@@ -75,8 +81,8 @@ const SpectrumAnalyzer = ({ analyser }) => {
         draw(); return () => cancelAnimationFrame(animationId);
     }, [analyser]);
     return (
-        <div style={{ position: 'relative' }}>
-            <canvas ref={canvasRef} className="visualizer-canvas" style={{width:'220px', height:'80px'}} />
+        <div className="spectrum-container" style={{ position: 'relative', width: '100%', height: '80px', background: 'rgba(0,0,0,0.3)', borderRadius: '4px', overflow: 'hidden' }}>
+            <canvas ref={canvasRef} className="visualizer-canvas" style={{width:'100%', height:'100%'}} />
             <div id="master-clip-led" style={{ 
                 position: 'absolute', top: '5px', right: '5px', width: '8px', height: '8px', 
                 borderRadius: '50%', background: '#300', border: '1px solid #111',

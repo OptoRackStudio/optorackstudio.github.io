@@ -105,17 +105,47 @@
 
 /* Master Bus */
 .master-layout {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
+    display: flex;
+    gap: 30px;
+    align-items: center;
+    flex-wrap: wrap;
+    width: 100%;
+}
+
+/* Responsive Overrides */
+@media (max-width: 900px) {
+    .master-layout {
+        gap: 20px;
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .master-col-left {
+        flex-direction: row;
+        justify-content: space-between;
+        width: 100%;
+        padding-bottom: 15px;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .master-col-mid {
+        border: none;
+        padding: 0;
+        min-width: 0;
+    }
+    
+    .master-col-right {
+        min-width: 0;
+        width: 100%;
+    }
 }
 
 .master-col-left {
-	display: flex;
-	flex-direction: column;
-	gap: 15px;
-	border-right: 1px solid var(--serum-border);
-	padding-right: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    min-width: 80px;
 }
 
 .master-rec-row {
@@ -141,47 +171,58 @@
 }
 
 .master-col-mid {
-	display: flex;
-	gap: 16px;
-	align-items: center;
-	padding-left: 16px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    min-width: 280px;
+    padding: 0 10px;
 }
 
 .master-toggles {
-	display: flex;
-	flex-direction: column;
-	gap: 12px;
-	padding-left: 16px;
-	border-left: 1px solid var(--serum-border);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
 }
 
 .master-toggle-row {
-	display: flex;
-	align-items: center;
-	gap: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    background: rgba(0,0,0,0.2);
+    padding: 6px 10px;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.master-toggle-row:hover {
+    background: rgba(255,255,255,0.05);
 }
 
 .master-toggle-btn {
-	width: 14px;
-	height: 14px;
-	border-radius: 3px;
-	cursor: pointer;
-	border: 1px solid #555;
-	box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    border: 1px solid rgba(255,255,255,0.1);
+    transition: all 0.2s;
 }
 
 .master-toggle-label {
-	font-size: 10px;
-	color: #ccc;
-	font-weight: bold;
-	text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+    font-size: 10px;
+    font-weight: 700;
+    color: #999;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
 }
 
 .master-col-right {
-	border-left: 1px solid var(--serum-border);
-	padding-left: 16px;
-	margin-left: 16px;
-	width: 220px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 220px;
+    flex: 1;
 }
 
 /* Sleep Screen */
@@ -199,7 +240,8 @@
 .sleep-panel {
 	padding: 40px 60px;
 	border-top: 4px solid var(--accent-cyan);
-	width: 650px;
+	max-width: 650px;
+	width: 100%;
 	background: rgba(10, 11, 14, 0.7);
 	backdrop-filter: blur(20px);
 	border-radius: 8px;

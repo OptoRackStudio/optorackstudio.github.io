@@ -105,6 +105,7 @@ html {
 	pointer-events: none;
 	touch-action: none;
 	-webkit-backface-visibility: hidden;
+	backface-visibility: hidden;
 }
 
 .app-ui-layer {
