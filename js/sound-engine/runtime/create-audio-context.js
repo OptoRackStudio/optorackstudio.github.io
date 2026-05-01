@@ -1,11 +1,15 @@
 window.SoundEngine.createAudioContext = (qualityKey) => {
   const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
   const profile = window.SoundEngine.QUALITY_PROFILES[qualityKey] || window.SoundEngine.QUALITY_PROFILES.STANDARD;
+  
   try {
-      return profile.audioContextOptions ? new AudioContextCtor(profile.audioContextOptions) : new AudioContextCtor();
+    return profile.audioContextOptions ? new AudioContextCtor(profile.audioContextOptions) : new AudioContextCtor();
   } catch (e) {
-      console.warn("AudioContext creation failed with options:", profile.audioContextOptions, "falling back to default.");
-      if (window.showOptoError) window.showOptoError(`Failed to initialize ${qualityKey} quality. Falling back to standard sample rate.`);
-      return new AudioContextCtor();
+    console.error(`[Audio] Failed to create context with profile ${qualityKey}:`, e);
+    // Fallback to standard
+    const ctx = new AudioContextCtor();
+    alert(`Audio Quality Profile "${qualityKey}" is not supported by your hardware. Falling back to Standard (${ctx.sampleRate}Hz).`);
+    return ctx;
   }
 };
+

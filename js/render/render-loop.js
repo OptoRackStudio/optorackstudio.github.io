@@ -344,9 +344,9 @@ window.OptoRackRenderLoop = class {
         if (!window.moduleControllers) return;
 
         const dt = 1 / 60;
-        const gravity = 0.5;
-        const stiffness = 0.8;
-        const segments = 14;
+        const gravity = 0.65; // Increased for more natural sag
+        const stiffness = 0.75; // Tuned for better physics response
+        const segments = 20; // Silky smooth curves
 
         cablesRef.current.forEach(c => {
             if (!c._physics) {
@@ -395,7 +395,7 @@ window.OptoRackRenderLoop = class {
                 }
             });
 
-            const targetLen = Math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2) / (segments - 1) * 1.15; // Increased slack
+            const targetLen = Math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2) / (segments - 1) * 1.1;
             for (let r = 0; r < 5; r++) {
                 for (let i = 0; i < segments - 1; i++) {
                     const a = c._physics[i];
@@ -425,38 +425,38 @@ window.OptoRackRenderLoop = class {
             }
             ctx.lineTo(c._physics[segments - 1].x, c._physics[segments - 1].y);
 
-            // Realistic 3D Cable Rendering
-            // 1. Ambient Drop Shadow
-            ctx.shadowBlur = 15 * cam.z;
+            // 1. DROP SHADOW (The 'Realistic' Depth Pass)
+            ctx.shadowBlur = 20 * cam.z;
             ctx.shadowColor = 'rgba(0,0,0,0.8)';
-            ctx.strokeStyle = 'rgba(0,0,0,0)'; 
-            ctx.lineWidth = 12 * cam.z;
+            ctx.shadowOffsetX = 10 * cam.z;
+            ctx.shadowOffsetY = 15 * cam.z;
+            ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+            ctx.lineWidth = 6 * cam.z;
             ctx.lineCap = 'round';
             ctx.stroke();
 
-            // Reset shadow
-            ctx.shadowBlur = 0;
-
-            // 2. Thick Dark Base (Rubber Rim)
-            ctx.strokeStyle = '#1a1a1a';
-            ctx.lineWidth = 8 * cam.z;
+            // 2. OUTER GLOW / GLOSS
+            ctx.shadowBlur = 12 * cam.z;
+            ctx.shadowColor = c.color;
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 0;
+            ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+            ctx.lineWidth = 6 * cam.z;
             ctx.stroke();
 
-            // 3. Colored Core
+            // 3. THE MAIN CABLE CORE
+            ctx.shadowBlur = 8 * cam.z;
+            ctx.shadowColor = c.color;
             ctx.strokeStyle = c.color;
-            ctx.lineWidth = 5 * cam.z;
+            ctx.lineWidth = 3.5 * cam.z;
             ctx.stroke();
 
-            // 4. Glossy Specular Highlight (Simulates 3D tube reflection)
-            ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-            ctx.lineWidth = 2 * cam.z;
-            ctx.stroke();
-
-            // 5. Signal Flow Indicator (Dashed)
-            ctx.strokeStyle = 'rgba(255,255,255,0.7)';
-            ctx.lineWidth = 1 * cam.z;
-            ctx.setLineDash([8, 24]);
-            ctx.lineDashOffset = -(performance.now() / 30) % 32;
+            // Inner Highlight / Pulse
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+            ctx.lineWidth = 1.2 * cam.z;
+            ctx.setLineDash([15, 25]);
+            ctx.lineDashOffset = -(performance.now() / 40) % 40;
             ctx.stroke();
             ctx.setLineDash([]);
 

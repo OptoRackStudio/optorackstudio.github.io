@@ -24,10 +24,7 @@ window.SpawnManager = {
         const W = window.innerWidth, H = window.innerHeight;
         
         // Safe UI Margins (Avoid overlapping top-bar, library, etc.)
-        const PAD_LEFT = Math.min(400, W * 0.35);
-        const PAD_RIGHT = Math.min(280, W * 0.25);
-        const PAD_TOP = Math.min(110, H * 0.15);
-        const PAD_BOTTOM = 90;
+        const PAD_TOP = 110, PAD_RIGHT = 280, PAD_BOTTOM = 90, PAD_LEFT = 400;
         const sL = PAD_LEFT, sR = W - PAD_RIGHT;
         const sT = PAD_TOP, sB = H - PAD_BOTTOM;
 

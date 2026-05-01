@@ -133,7 +133,16 @@ const Knob = ({label, val = 0, min, max, step, def, onChange, onAssign, isAssign
     };
 
     return (
-        <div className="knob-container" style={{cursor: isAssigning ? 'crosshair' : 'ns-resize'}} onPointerDown={handleDrag} onDoubleClick={(e) => { e.stopPropagation(); onChange(def); }}>
+        <div className="knob-container" 
+             style={{cursor: isAssigning ? 'crosshair' : 'ns-resize'}} 
+             onPointerDown={handleDrag} 
+             onDoubleClick={(e) => { e.stopPropagation(); onChange(def); }}
+             tabIndex={0}
+             aria-label={`${label} control. Value: ${formatKnobValue(label, displayVal)}`}
+             role="slider"
+             aria-valuemin={min}
+             aria-valuemax={max}
+             aria-valuenow={displayVal}>
             <div className={`knob-dial ${isChanging ? 'active-glow' : ''}`} style={{ border: isAssigning ? '2px solid #B266FF' : 'none' }}>
                 <div className="knob-indicator" style={{ transform:`translate(-50%, -100%) rotate(${isNaN(angle) ? 0 : angle}deg)` }} />
                 <div className="knob-ring-bg" />
@@ -161,7 +170,14 @@ const ModuleJack = ({id, n, t=false, type="cv", active=false, patchedColor, domR
     return (
         <div className="jack-container" style={{justifyContent: t?'flex-start':'flex-end'}}>
            {!t && <div className="jack-label" style={{marginRight: '12px'}}>{n}</div>}
-           <div className="jack-wrapper" onPointerDown={onDown} onPointerUp={onUp} onDoubleClick={onDoubleClick} style={{ perspective: '500px' }}>
+           <div className="jack-wrapper" 
+                onPointerDown={onDown} 
+                onPointerUp={onUp} 
+                onDoubleClick={onDoubleClick} 
+                style={{ perspective: '500px' }}
+                tabIndex={0}
+                role="button"
+                aria-label={`${n} jack ${isInput ? 'input' : 'output'}`}>
                <div className="jack-housing" style={{ transform: `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)` }}>
                    <div className="jack-rim" />
                    <div className="jack-hole" ref={(el) => { 
@@ -273,7 +289,12 @@ const DraggableWindow = ({ id, title, color, initialX, initialY, initialW, initi
     };
 
     const HeaderBtn = ({ label, onClick, colorHover }) => (
-        <div className="window-header-btn" onPointerDown={(e) => { e.stopPropagation(); onClick(); }} style={{ '--hover-color': colorHover }}>
+        <div className="window-header-btn" 
+             onPointerDown={(e) => { e.stopPropagation(); onClick(); }} 
+             style={{ '--hover-color': colorHover }}
+             tabIndex={0}
+             role="button"
+             aria-label={label === '✕' ? 'Close' : label === '–' ? 'Minimize' : label}>
             {label}
         </div>
     );

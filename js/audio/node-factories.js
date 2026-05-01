@@ -80,40 +80,16 @@ window.OptoRackAudio = {
             const highShelf = actx.createBiquadFilter(); highShelf.type = 'highshelf';
             const baseDelays = [0.0113, 0.0167, 0.0223, 0.0293, 0.0347, 0.0419];
             const revDelays = baseDelays.map(t => { const d = actx.createDelay(1.0); d.delayTime.value = t; return d; });
-            const revPanners = revDelays.map((_, i) => { const p = actx.createStereoPanner(); p.pan.value = i % 2 === 0 ? 0.8 : -0.8; return p; });
             const revFbs = revDelays.map(() => { const g = actx.createGain(); g.gain.value = 0.85; return g; });
             const spinLfo = actx.createOscillator(); const spinGain = actx.createGain(); spinGain.gain.value = 0.002;
             spinLfo.connect(spinGain); spinLfo.start();
             revIn.connect(revDry); revDry.connect(revOut); revIn.connect(preDelay);
             preDelay.connect(loCut); loCut.connect(hiCut); hiCut.connect(lowShelf); lowShelf.connect(highShelf);
-            revDelays.forEach((d, i) => { 
-                highShelf.connect(d); 
-                d.connect(revFbs[i]); 
-                revFbs[i].connect(revDelays[(i + 1) % 6]); 
-                d.connect(revPanners[i]);
-                revPanners[i].connect(revWet);
-                spinGain.connect(d.delayTime); 
-            });
-            
-            // Mid-Side Width Matrix
-            const wetSplitter = actx.createChannelSplitter(2);
-            revWet.connect(wetSplitter);
-            const midNode = actx.createGain(); midNode.gain.value = 0.5;
-            const sideNode = actx.createGain();
-            const sideInvert = actx.createGain(); sideInvert.gain.value = -1;
-            wetSplitter.connect(midNode, 0); wetSplitter.connect(midNode, 1);
-            wetSplitter.connect(sideNode, 0); wetSplitter.connect(sideInvert, 1); sideInvert.connect(sideNode);
-            const widthGain = actx.createGain(); sideNode.connect(widthGain);
-            const merger = actx.createChannelMerger(2);
-            midNode.connect(merger, 0, 0); midNode.connect(merger, 0, 1);
-            widthGain.connect(merger, 0, 0);
-            const sideOutInvert = actx.createGain(); sideOutInvert.gain.value = -1;
-            widthGain.connect(sideOutInvert); sideOutInvert.connect(merger, 0, 1);
-            merger.connect(revOut);
-
+            revDelays.forEach((d, i) => { highShelf.connect(d); d.connect(revFbs[i]); revFbs[i].connect(revDelays[(i + 1) % 6]); d.connect(revWet); spinGain.connect(d.delayTime); });
+            revWet.connect(revOut);
             mod.inNodes = { IN: revIn }; mod.outNodes = { OUT: revOut };
             mod.params = overrideParams || { mix: 0.45, distance: 0.0, decay: 0.88, size: 2.5, width: 1.0, loCut: 400, hiCut: 9000, loGain: 0.0, hiGain: -1.5, spinRate: 0.4, spin: 0.32 };
-            mod.nodes = { wet: revWet, dry: revDry, pre: preDelay, lo: loCut, hi: hiCut, lowEQ: lowShelf, hiEQ: highShelf, fbs: revFbs, delays: revDelays, baseDelays, spin: spinGain, spinLfo, widthGain };
+            mod.nodes = { wet: revWet, dry: revDry, pre: preDelay, lo: loCut, hi: hiCut, lowEQ: lowShelf, hiEQ: highShelf, fbs: revFbs, delays: revDelays, baseDelays, spin: spinGain, spinLfo };
         }
         else if (type === 'FX_AUTOFILTER') {
             const afIn = actx.createGain(); const afOut = actx.createGain();

@@ -23,6 +23,7 @@ const MASTER_PROFILES = {
  * - Houses the persistent Audio Graph (cDsp) and the 60fps Physics Render Loop.
  * - Coordinates between UI interaction and the low-level Web Audio/WebGL drivers.
  */
+// window.DW/DH are owned by OptoRackResolution - fixed B-10
 
 function App() {
     const {
@@ -47,6 +48,7 @@ function App() {
     const [isGuideOpen, setIsGuideOpen] = useState(true);
     const [isSynthMenuOpen, setIsSynthMenuOpen] = useState(false);
     const [isUiHidden, setIsUiHidden] = useState(false);
+    const [isSystemMenuOpen, setIsSystemMenuOpen] = useState(false);
 
     const [savedProjects, setSavedProjects] = useState([]);
     const [saveDirectoryHandle, setSaveDirectoryHandle] = useState(null);
@@ -456,8 +458,8 @@ function App() {
 
         if (!isGuest) {
             try {
-                // Add a 5 second timeout to getUserMedia in case user ignores the prompt
-                const getMediaPromise = navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: 640, height: 480 } });
+                // Remove hardcoded 'environment' facingMode to prevent rejection on non-mobile devices
+                const getMediaPromise = navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
                 const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Camera prompt timeout")), 5000));
 
                 const feed = await Promise.race([getMediaPromise, timeoutPromise]);
@@ -562,35 +564,54 @@ function App() {
 
     const toggleRecording = () => {
         try {
-            if (isRecording) { cDsp.current.recorder.stop(); setIsRecording(false); }
-            else {
+            if (isRecording) { 
+                cDsp.current.recorder.stop(); 
+                setIsRecording(false); 
+            } else {
+                cDsp.current.chunks = [];
+                
+                // B-09: Detect best supported format (Safari compatibility)
                 let mimeType = 'audio/webm';
-                let ext = 'webm';
+                let extension = 'webm';
+                
                 if (!MediaRecorder.isTypeSupported(mimeType)) {
-                    if (MediaRecorder.isTypeSupported('audio/mp4')) { mimeType = 'audio/mp4'; ext = 'mp4'; }
-                    else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) { mimeType = 'audio/ogg;codecs=opus'; ext = 'ogg'; }
-                    else {
-                        if (window.showOptoError) window.showOptoError("No supported audio recording format found.");
-                        console.error("No supported format found for MediaRecorder");
+                    if (MediaRecorder.isTypeSupported('audio/mp4')) {
+                        mimeType = 'audio/mp4';
+                        extension = 'mp4';
+                    } else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
+                        mimeType = 'audio/ogg;codecs=opus';
+                        extension = 'ogg';
+                    } else {
+                        alert("Recording is not supported in this browser (no suitable audio format found).");
                         return;
                     }
                 }
 
-                cDsp.current.chunks = []; 
-                const recorder = new MediaRecorder(cDsp.current.dest.stream, { mimeType, audioBitsPerSecond: 320000 });
+                const recorder = new MediaRecorder(cDsp.current.dest.stream, { 
+                    mimeType,
+                    audioBitsPerSecond: 320000 
+                });
+                
                 recorder.ondataavailable = e => cDsp.current.chunks.push(e.data);
                 recorder.onstop = () => {
                     const blob = new Blob(cDsp.current.chunks, { type: mimeType });
-                    const url = URL.createObjectURL(blob); const a = document.createElement('a');
-                    a.href = url; a.download = `OptoRack_Live_${Date.now()}.${ext}`; a.click();
+                    const url = URL.createObjectURL(blob); 
+                    const a = document.createElement('a');
+                    a.href = url; 
+                    a.download = `OptoRack_Live_${Date.now()}.${extension}`; 
+                    a.click();
                 };
-                recorder.start(); cDsp.current.recorder = recorder; setIsRecording(true);
+                
+                recorder.start(); 
+                cDsp.current.recorder = recorder; 
+                setIsRecording(true);
             }
         } catch (e) { 
-            console.warn("MediaRecorder failed.", e); 
-            if (window.showOptoError) window.showOptoError("Recording not supported on this browser.");
+            console.warn("MediaRecorder failure:", e); 
+            alert("Failed to start recording: " + e.message);
         }
     };
+
 
     const serializeProject = () => ({
         synths: synths.map(s => {
@@ -630,43 +651,13 @@ function App() {
         }
     };
 
-    const getIDB = () => new Promise((resolve, reject) => {
-        const r = indexedDB.open('OptoRackFS', 1);
-        r.onupgradeneeded = e => e.target.result.createObjectStore('files');
-        r.onsuccess = e => resolve(e.target.result);
-        r.onerror = e => reject(e);
-    });
-    
-    const IDBFSAFallback = {
-        isFallback: true,
-        async values() {
-            const db = await getIDB();
-            return new Promise(resolve => {
-                const req = db.transaction('files').objectStore('files').getAllKeys();
-                req.onsuccess = e => {
-                    const keys = e.target.result;
-                    resolve(keys.map(k => ({ kind: 'file', name: k, isIDB: true, idbKey: k })));
-                };
-            });
-        }
-    };
-
     const refreshProjectsFromDirectory = async (directoryHandle) => {
         if (!directoryHandle) return;
         try {
             const files = [];
-            if (directoryHandle.isFallback) {
-                const entries = await directoryHandle.values();
-                for (const entry of entries) {
-                    if (entry.kind === 'file' && entry.name.toLowerCase().endsWith('.json')) {
-                        files.push({ name: entry.name, handle: entry });
-                    }
-                }
-            } else {
-                for await (const entry of directoryHandle.values()) {
-                    if (entry.kind === 'file' && entry.name.toLowerCase().endsWith('.json')) {
-                        files.push({ name: entry.name, handle: entry });
-                    }
+            for await (const entry of directoryHandle.values()) {
+                if (entry.kind === 'file' && entry.name.toLowerCase().endsWith('.json')) {
+                    files.push({ name: entry.name, handle: entry });
                 }
             }
             files.sort((a, b) => b.name.localeCompare(a.name));
@@ -677,17 +668,11 @@ function App() {
     };
 
     const chooseSaveDirectory = async () => {
+        if (!window.showDirectoryPicker) {
+            alert('Directory picker is not supported in this browser runtime.');
+            return;
+        }
         try {
-            if (!window.showDirectoryPicker) {
-                console.warn('Directory picker is not supported in this browser runtime. Using IndexedDB fallback.');
-                await getIDB();
-                setSaveDirectoryHandle(IDBFSAFallback);
-                setSaveDirectoryPath('Browser Local Storage (Fallback)');
-                try { localStorage.setItem('optorack_save_dir_label', 'Browser Local Storage (Fallback)'); } catch (e) { }
-                await refreshProjectsFromDirectory(IDBFSAFallback);
-                setIsProjectsOpen(true);
-                return;
-            }
             const rootHandle = await window.showDirectoryPicker();
             const optoRackSavesHandle = await rootHandle.getDirectoryHandle('OptoRack Saves', { create: true });
             setSaveDirectoryHandle(optoRackSavesHandle);
@@ -701,7 +686,29 @@ function App() {
         }
     };
 
+    const saveProjectToBlob = () => {
+        try {
+            const data = serializeProject();
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            a.href = url;
+            a.download = `OptoRack_Project_${timestamp}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            console.error('Failed to export project blob', e);
+        }
+    };
+
     const saveProjectToDirectory = async () => {
+        // Fallback for browsers without File System Access API
+        if (!window.showDirectoryPicker && !saveDirectoryHandle) {
+            saveProjectToBlob();
+            return;
+        }
+        
         if (!saveDirectoryHandle) {
             await chooseSaveDirectory();
             return;
@@ -709,41 +716,21 @@ function App() {
         try {
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
             const fileName = `OptoRack_Project_${timestamp}.json`;
-            const jsonStr = JSON.stringify(serializeProject(), null, 2);
-            
-            if (saveDirectoryHandle.isFallback) {
-                const db = await getIDB();
-                await new Promise((resolve, reject) => {
-                    const tx = db.transaction('files', 'readwrite');
-                    tx.objectStore('files').put(jsonStr, fileName);
-                    tx.oncomplete = () => resolve();
-                    tx.onerror = () => reject();
-                });
-            } else {
-                const fileHandle = await saveDirectoryHandle.getFileHandle(fileName, { create: true });
-                const writable = await fileHandle.createWritable();
-                await writable.write(jsonStr);
-                await writable.close();
-            }
+            const fileHandle = await saveDirectoryHandle.getFileHandle(fileName, { create: true });
+            const writable = await fileHandle.createWritable();
+            await writable.write(JSON.stringify(serializeProject(), null, 2));
+            await writable.close();
             await refreshProjectsFromDirectory(saveDirectoryHandle);
         } catch (e) {
-            console.warn('Failed to save project file', e);
+            console.warn('Failed to save project file, falling back to blob export', e);
+            saveProjectToBlob();
         }
     };
 
     const loadProjectFromFileHandle = async (fileHandle) => {
         try {
-            let text;
-            if (fileHandle.isIDB) {
-                const db = await getIDB();
-                text = await new Promise(resolve => {
-                    const req = db.transaction('files').objectStore('files').get(fileHandle.idbKey);
-                    req.onsuccess = e => resolve(e.target.result);
-                });
-            } else {
-                const file = await fileHandle.getFile();
-                text = await file.text();
-            }
+            const file = await fileHandle.getFile();
+            const text = await file.text();
             const data = JSON.parse(text);
             loadProject(data);
             setIsProjectsOpen(false);
@@ -1156,13 +1143,37 @@ function App() {
     const updateParamInternal = (mod, param, val) => {
         if (!cDsp.current.actx) return; const ct = cDsp.current.actx.currentTime;
 
-        if (param === 'time' && mod.type === 'FX_DELAY') mod.nodes.delay.delayTime.setTargetAtTime(val, ct, 0.1);
-        if (param === 'feedback' && mod.type === 'FX_DELAY') mod.nodes.feedback.gain.setTargetAtTime(val, ct, 0.1);
-        if (param === 'cutoff' && mod.type === 'FX_DELAY') mod.nodes.filter.frequency.setTargetAtTime(val, ct, 0.1);
-        if (param === 'mix' && mod.type === 'FX_DELAY') { mod.nodes.wet.gain.setTargetAtTime(val, ct, 0.1); mod.nodes.dry.gain.setTargetAtTime(1.0 - val, ct, 0.1); }
+        const type = mod.type;
 
-        if (param === 'loGain' && mod.type === 'FX_PRO_REV') mod.nodes.lowEQ.gain.setTargetAtTime(val, ct, 0.1);
-        if (param === 'hiGain' && mod.type === 'FX_PRO_REV') mod.nodes.hiEQ.gain.setTargetAtTime(val, ct, 0.1);
+        if (type === 'FX_DELAY') {
+            if (param === 'time') mod.nodes.delay.delayTime.setTargetAtTime(val, ct, 0.1);
+            if (param === 'feedback') mod.nodes.feedback.gain.setTargetAtTime(val, ct, 0.1);
+            if (param === 'cutoff') mod.nodes.filter.frequency.setTargetAtTime(val, ct, 0.1);
+            if (param === 'mix') { mod.nodes.wet.gain.setTargetAtTime(val, ct, 0.1); mod.nodes.dry.gain.setTargetAtTime(1.0 - val, ct, 0.1); }
+        }
+
+        if (type === 'FX_PRO_REV') {
+            if (param === 'loGain') mod.nodes.lowEQ.gain.setTargetAtTime(val, ct, 0.1);
+            if (param === 'hiGain') mod.nodes.hiEQ.gain.setTargetAtTime(val, ct, 0.1);
+            if (param === 'mix') {
+                mod.nodes.wet.gain.setTargetAtTime(Math.sin(val * Math.PI / 2), ct, 0.1);
+                mod.nodes.dry.gain.setTargetAtTime(Math.cos(val * Math.PI / 2), ct, 0.1);
+            }
+            if (param === 'distance') {
+                mod.nodes.pre.delayTime.setTargetAtTime(lerp(0.001, 0.15, val), ct, 0.1);
+                if (mod.nodes.hiEQ) {
+                    mod.nodes.hiEQ.gain.setTargetAtTime(lerp(0, -18, val), ct, 0.1);
+                    mod.nodes.hiEQ.frequency.setTargetAtTime(lerp(12000, 3000, val), ct, 0.1);
+                }
+            }
+            if (param === 'decay') mod.nodes.fbs.forEach(fb => fb.gain.setTargetAtTime(val, ct, 0.1));
+            if (param === 'size') mod.nodes.delays.forEach((d, i) => d.delayTime.setTargetAtTime(mod.nodes.baseDelays[i] * val, ct, 0.1));
+            if (param === 'loCut') mod.nodes.lo.frequency.setTargetAtTime(val, ct, 0.1);
+            if (param === 'hiCut') mod.nodes.hi.frequency.setTargetAtTime(val, ct, 0.1);
+            if (param === 'spin' || param === 'spinRate') { 
+                if (mod.nodes.spin) mod.nodes.spin.gain.setTargetAtTime(val, ct, 0.1);
+            }
+        }
 
         if (mod.type === 'FX_EQ') {
             const match = param.match(/b(\d+)([fgq])/);
@@ -1173,63 +1184,50 @@ function App() {
                 if (pType === 'q') { mod.nodes.bands[bIdx].Q.cancelScheduledValues(ct); mod.nodes.bands[bIdx].Q.linearRampToValueAtTime(val, ct + 0.05); }
             }
         }
-        if (param === 'mix' && mod.type === 'FX_PRO_REV') {
-            mod.nodes.wet.gain.setTargetAtTime(Math.sin(val * Math.PI / 2), ct, 0.1);
-            mod.nodes.dry.gain.setTargetAtTime(Math.cos(val * Math.PI / 2), ct, 0.1);
-        }
-        if (param === 'distance' && mod.type === 'FX_PRO_REV') {
-            mod.nodes.pre.delayTime.setTargetAtTime(lerp(0.001, 0.15, val), ct, 0.1);
-            // Simulate high-frequency dampening over distance (Air absorption)
-            if (mod.nodes.hiEQ) {
-                mod.nodes.hiEQ.gain.setTargetAtTime(lerp(0, -18, val), ct, 0.1);
-                mod.nodes.hiEQ.frequency.setTargetAtTime(lerp(12000, 3000, val), ct, 0.1);
-            }
+
+
+
+        if (type === 'FX_AUTOFILTER') {
+            if (param === 'cut') { mod.nodes.filter1.frequency.setTargetAtTime(val, ct, 0.1); mod.nodes.filter2.frequency.setTargetAtTime(val, ct, 0.1); }
+            if (param === 'res') { mod.nodes.filter1.Q.setTargetAtTime(val * 0.6, ct, 0.1); mod.nodes.filter2.Q.setTargetAtTime(val * 0.6, ct, 0.1); }
+            if (param === 'drive') mod.nodes.drive.curve = makeDriveCurve(val);
+            if (param === 'lfoRate') mod.nodes.lfo.frequency.setTargetAtTime(val, ct, 0.1);
+            if (param === 'lfoAmt') mod.nodes.lfoGain.gain.setTargetAtTime(val, ct, 0.1);
+            if (param === 'filterType') { mod.nodes.filter1.type = val; mod.nodes.filter2.type = val; }
         }
 
-        if (param === 'decay' && mod.type === 'FX_PRO_REV') mod.nodes.fbs.forEach(fb => fb.gain.setTargetAtTime(val, ct, 0.1));
-        if (param === 'size' && mod.type === 'FX_PRO_REV') mod.nodes.delays.forEach((d, i) => d.delayTime.setTargetAtTime(mod.nodes.baseDelays[i] * val, ct, 0.1));
-        if (param === 'width' && mod.type === 'FX_PRO_REV') {
-            if (mod.nodes.widthGain) mod.nodes.widthGain.gain.setTargetAtTime(val, ct, 0.1);
-        }
-        if (param === 'loCut' && mod.type === 'FX_PRO_REV') mod.nodes.lo.frequency.setTargetAtTime(val, ct, 0.1);
-        if (param === 'hiCut' && mod.type === 'FX_PRO_REV') mod.nodes.hi.frequency.setTargetAtTime(val, ct, 0.1);
-        if (param === 'spinRate' && mod.type === 'FX_PRO_REV') mod.nodes.spinLfo.frequency.setTargetAtTime(val, ct, 0.1);
-        if (param === 'spin' && mod.type === 'FX_PRO_REV') mod.nodes.spin.gain.setTargetAtTime(val, ct, 0.1);
-        if (param === 'cut' && mod.type === 'FX_AUTOFILTER') { mod.nodes.filter1.frequency.setTargetAtTime(val, ct, 0.1); mod.nodes.filter2.frequency.setTargetAtTime(val, ct, 0.1); } if (mod.type === 'FX_TRANSIENT') {
-            // Simplified transient shaping logic (Actual DSP happens in Worklet or via complex gain routing usually)
-            // For now, we simulate the 'impact' via gain bias
+        if (type === 'FX_TRANSIENT') {
             if (param === 'attack') mod.nodes.shaper.gain.setTargetAtTime(val * 1.5, ct, 0.05);
             if (param === 'sustain') mod.nodes.out.gain.setTargetAtTime(val, ct, 0.1);
         }
-        if (param === 'res' && mod.type === 'FX_AUTOFILTER') { mod.nodes.filter1.Q.setTargetAtTime(val * 0.6, ct, 0.1); mod.nodes.filter2.Q.setTargetAtTime(val * 0.6, ct, 0.1); }
-        if (param === 'drive' && mod.type === 'FX_AUTOFILTER') mod.nodes.drive.curve = makeDriveCurve(val);
-        if (param === 'lfoRate' && mod.type === 'FX_AUTOFILTER') mod.nodes.lfo.frequency.setTargetAtTime(val, ct, 0.1);
-        if (param === 'lfoAmt' && mod.type === 'FX_AUTOFILTER') mod.nodes.lfoGain.gain.setTargetAtTime(val, ct, 0.1);
-        if (param === 'filterType' && mod.type === 'FX_AUTOFILTER') { mod.nodes.filter1.type = val; mod.nodes.filter2.type = val; }
-        if (param === 'depth' && mod.type === 'FX_OTT') { mod.nodes.dry.gain.setTargetAtTime(1.0 - val, ct, 0.1); mod.nodes.wet.gain.setTargetAtTime(val, ct, 0.1); }
-        if (param === 'low' && mod.type === 'FX_OTT') mod.nodes.gL.gain.setTargetAtTime(val, ct, 0.1);
-        if (param === 'mid' && mod.type === 'FX_OTT') mod.nodes.gM.gain.setTargetAtTime(val, ct, 0.1);
-        if (param === 'high' && mod.type === 'FX_OTT') mod.nodes.gH.gain.setTargetAtTime(val, ct, 0.1);
-        if (param === 'vol' && mod.type === 'UTILITY_IO') mod.nodes.vol.gain.setTargetAtTime(Math.pow(10, val / 20), ct, 0.1);
-        if (param === 'pan' && mod.type === 'UTILITY_IO') {
-            const panVal = parseFloat(val); // 0 to 1
-            if (mod.params.isMono) {
-                mod.nodes.vcaL.gain.setTargetAtTime(0.707, ct, 0.05);
-                mod.nodes.vcaR.gain.setTargetAtTime(0.707, ct, 0.05);
-            } else {
-                // Constant power panning
-                mod.nodes.vcaL.gain.setTargetAtTime(Math.cos(panVal * Math.PI / 2), ct, 0.05);
-                mod.nodes.vcaR.gain.setTargetAtTime(Math.sin(panVal * Math.PI / 2), ct, 0.05);
-            }
+
+        if (type === 'FX_OTT') {
+            if (param === 'depth') { mod.nodes.dry.gain.setTargetAtTime(1.0 - val, ct, 0.1); mod.nodes.wet.gain.setTargetAtTime(val, ct, 0.1); }
+            if (param === 'low') mod.nodes.gL.gain.setTargetAtTime(val, ct, 0.1);
+            if (param === 'mid') mod.nodes.gM.gain.setTargetAtTime(val, ct, 0.1);
+            if (param === 'high') mod.nodes.gH.gain.setTargetAtTime(val, ct, 0.1);
         }
-        if (param === 'isMono' && mod.type === 'UTILITY_IO') {
-            if (val) {
-                mod.nodes.vcaL.gain.setTargetAtTime(0.707, ct, 0.05);
-                mod.nodes.vcaR.gain.setTargetAtTime(0.707, ct, 0.05);
-            } else {
-                const pan = mod.params.pan || 0.5;
-                mod.nodes.vcaL.gain.setTargetAtTime(Math.cos(pan * Math.PI / 2), ct, 0.05);
-                mod.nodes.vcaR.gain.setTargetAtTime(Math.sin(pan * Math.PI / 2), ct, 0.05);
+        if (type === 'UTILITY_IO') {
+            if (param === 'vol') mod.nodes.vol.gain.setTargetAtTime(Math.pow(10, val / 20), ct, 0.1);
+            if (param === 'pan') {
+                const panVal = parseFloat(val);
+                if (mod.params.isMono) {
+                    mod.nodes.vcaL.gain.setTargetAtTime(0.707, ct, 0.05);
+                    mod.nodes.vcaR.gain.setTargetAtTime(0.707, ct, 0.05);
+                } else {
+                    mod.nodes.vcaL.gain.setTargetAtTime(Math.cos(panVal * Math.PI / 2), ct, 0.05);
+                    mod.nodes.vcaR.gain.setTargetAtTime(Math.sin(panVal * Math.PI / 2), ct, 0.05);
+                }
+            }
+            if (param === 'isMono') {
+                if (val) {
+                    mod.nodes.vcaL.gain.setTargetAtTime(0.707, ct, 0.05);
+                    mod.nodes.vcaR.gain.setTargetAtTime(0.707, ct, 0.05);
+                } else {
+                    const pan = mod.params.pan || 0.5;
+                    mod.nodes.vcaL.gain.setTargetAtTime(Math.cos(pan * Math.PI / 2), ct, 0.05);
+                    mod.nodes.vcaR.gain.setTargetAtTime(Math.sin(pan * Math.PI / 2), ct, 0.05);
+                }
             }
         }
 
@@ -1341,6 +1339,7 @@ function App() {
                 if (param === 'drive') mod.nodes.synthDrive.gain.setTargetAtTime(Math.pow(10, val / 20), ct, 0.1);
                 if (param === 'inLvl') {
                     if (mod.audioIn) mod.audioIn.gain.setTargetAtTime(val, ct, 0.1);
+                    mod.unisonMaster.gain.setTargetAtTime(val, ct, 0.1);
                 }
                 if (param === 'lfoWave') mod.lfo.type = ['sine', 'square', 'sawtooth', 'triangle'][val];
             } else if (mod.type === 'MASTER') {
@@ -1512,7 +1511,132 @@ function App() {
                 <>
                     <div className={`app-ui-layer ${isUiHidden ? 'ui-hidden' : ''}`}>
 
-                        {/* Legacy Top Bar removed */}
+                        <div className="top-bar">
+                            <div className="top-bar-left">
+                                <div className="glass-panel creation-tools" style={{ position: 'relative' }}>
+                                    <button onPointerDown={(e) => e.stopPropagation()} onClick={() => {
+                                        if (networkMode === 'GUEST' && !permissions.canPatch) return;
+                                        spawnSynth(null, null, null, null, 'PHOTON_OSCILLATOR');
+                                    }} className="top-btn cyan-glow" style={{ opacity: (networkMode === 'GUEST' && !permissions.canPatch) ? 0.5 : 1 }}>
+                                        + 4742 PHOTOSYNTH
+                                    </button>
+
+                                    <button onPointerDown={(e) => e.stopPropagation()} onClick={() => {
+                                        if (networkMode === 'GUEST' && !permissions.canPatch) return;
+                                        setIsBrowserOpen(true);
+                                    }} className="top-btn" style={{ opacity: (networkMode === 'GUEST' && !permissions.canPatch) ? 0.5 : 1 }}>
+                                        LIBRARY
+                                    </button>
+                                    <button onPointerDown={(e) => e.stopPropagation()} onClick={() => setIsVisualsBrowserOpen(true)} className="top-btn">
+                                        VISUALS
+                                    </button>
+                                    <div className="divider" />
+                                    <div className="color-dots">
+                                        {window.THEME_CLRS.map(c => (
+                                            <div key={c} className="color-dot" onPointerDown={(e) => e.stopPropagation()} onClick={() => setWireColor(c)} style={{ backgroundColor: c, border: wireColor === c ? '2px solid #FFF' : '2px solid transparent' }} />
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="top-bar-center">
+                                <div className="glass-panel global-console">
+                                    <div className="console-group">
+                                        <span className="tiny-label">BPM</span>
+                                        <input type="range" min={TWEAKS.ranges.bpmMin} max={TWEAKS.ranges.bpmMax} value={bpm} onPointerDown={(e) => e.stopPropagation()} onChange={(e) => setBpm(Number(e.target.value))} className="top-range" />
+                                        <span className="console-val cyan">{bpm}</span>
+                                    </div>
+                                    <div className="divider" />
+                                    <div className="console-group">
+                                        <select value={rootNote} onPointerDown={(e) => e.stopPropagation()} onChange={(e) => setRootNote(e.target.value)} className="top-select">
+                                            {NOTES.map(n => <option key={n} value={n}>{n}</option>)}
+                                        </select>
+                                        <select value={scale} onPointerDown={(e) => e.stopPropagation()} onChange={(e) => setScale(e.target.value)} className="top-select">
+                                            <option value="MAJOR">😊 MAJOR</option>
+                                            <option value="MINOR">😢 MINOR</option>
+                                            <option value="DORIAN">🌀 DORIAN</option>
+                                            <option value="PHRYGIAN">🔥 PHRYGIAN</option>
+                                            <option value="LYDIAN">✨ LYDIAN</option>
+                                            <option value="MIXOLYDIAN">🎸 MIXOLYDIAN</option>
+                                            <option value="LOCRIAN">🌑 LOCRIAN</option>
+                                            <option value="PENTATONIC">⛩️ PENTATONIC</option>
+                                            <option value="BLUES">🎷 BLUES</option>
+                                        </select>
+                                    </div>
+                                    <div className="divider desktop-only" />
+                                    <div className="perf-readout desktop-only">
+                                        <window.PerformanceMeter />
+                                        <window.CPUGraph />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="top-bar-right">
+                                <div className="glass-panel session-mgnt">
+                                    {networkMode === 'OFFLINE' && (
+                                        <>
+                                            <button onClick={async () => {
+                                                try {
+                                                    await window.OptoNetwork.initHost();
+                                                    setNetworkMode('HOST');
+                                                    const aTrack = cDsp.current.dest.stream.getAudioTracks()[0];
+                                                    let vTrack;
+                                                    if (vRef.current && vRef.current.srcObject) {
+                                                        vTrack = vRef.current.srcObject.getVideoTracks()[0];
+                                                    } else {
+                                                        const canvas = document.createElement('canvas'); canvas.width = 640; canvas.height = 480;
+                                                        vTrack = canvas.captureStream(30).getVideoTracks()[0];
+                                                    }
+                                                    if (vTrack && aTrack) {
+                                                        const combined = new MediaStream([vTrack, aTrack]);
+                                                        window.OptoNetwork.streamMedia(combined);
+                                                    }
+                                                } catch (e) { console.error('Failed to go online', e); }
+                                            }} className="top-btn cyan-glow">GO ONLINE (HOST)</button>
+                                            <div className="divider" />
+                                        </>
+                                    )}
+
+                                    {networkMode === 'HOST' && (
+                                        <>
+                                            <div className="console-group">
+                                                <span className="tiny-label">ID:</span>
+                                                <span className="console-val">{window.OptoNetwork.lobbyId}</span>
+                                            </div>
+                                            <div className="divider" />
+                                        </>
+                                    )}
+
+                                    {networkMode !== 'OFFLINE' && (
+                                        <div className="player-list-container">
+                                            <span className="console-val cyan" style={{ cursor: 'pointer' }} onClick={() => {
+                                                const el = document.getElementById('player-dropdown');
+                                                el.style.display = el.style.display === 'none' ? 'block' : 'none';
+                                            }}>
+                                                {playersList.length}P
+                                            </span>
+                                            <div id="player-dropdown" className="glass-panel player-dropdown">
+                                                {playersList.map((p, i) => (
+                                                    <div key={i} className="player-row">
+                                                        <span>{p} {i === 0 ? '(HOST)' : ''}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <div className="divider" />
+                                        </div>
+                                    )}
+
+                                    {networkMode !== 'GUEST' && (
+                                        <>
+                                            <button onClick={saveProjectToDirectory} className="top-btn">SAVE</button>
+                                            <button onClick={async () => { if (saveDirectoryHandle) await refreshProjectsFromDirectory(saveDirectoryHandle); setIsProjectsOpen(!isProjectsOpen); }} className="top-btn">LOAD</button>
+                                            <div className="divider" />
+                                            <button onClick={chooseSaveDirectory} className="top-btn">DIR</button>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
 
                         {/* NAVIGATION MINIMAP */}
                         <window.Minimap
@@ -1790,177 +1914,68 @@ function App() {
                         </div>
                         
                         {cDsp.current.modules['MASTER'] && (
-                            <div className="bottom-dock" onPointerDown={(e) => e.stopPropagation()}>
-                                <div className="glass-panel creation-tools" style={{ position: 'relative', display: 'flex', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center', gap: '10px', pointerEvents: 'auto' }}>
-                                    <button onClick={() => {
-                                        if (networkMode === 'GUEST' && !permissions.canPatch) return;
-                                        spawnSynth(null, null, null, null, 'PHOTON_OSCILLATOR');
-                                    }} className="top-btn cyan-glow" style={{ opacity: (networkMode === 'GUEST' && !permissions.canPatch) ? 0.5 : 1 }}>
-                                        + 4742
-                                    </button>
-
-                                    <button onClick={() => {
-                                        if (networkMode === 'GUEST' && !permissions.canPatch) return;
-                                        setIsBrowserOpen(true);
-                                    }} className="top-btn" style={{ opacity: (networkMode === 'GUEST' && !permissions.canPatch) ? 0.5 : 1 }}>
-                                        LIB
-                                    </button>
-                                    <button onClick={() => setIsVisualsBrowserOpen(true)} className="top-btn">
-                                        VIS
-                                    </button>
-                                    <div className="divider" />
-                                    <div className="color-dots" style={{ display: 'flex', gap: '5px' }}>
-                                        {window.THEME_CLRS.map(c => (
-                                            <div key={c} className="color-dot" onClick={() => setWireColor(c)} style={{ backgroundColor: c, border: wireColor === c ? '2px solid #FFF' : '2px solid transparent', width: '12px', height: '12px', borderRadius: '50%', cursor: 'pointer' }} />
-                                        ))}
+                            <window.DraggableWindow 
+                                id="MASTER" 
+                                title="PRO MASTER BUSS" 
+                                color="#FF0033" 
+                                initialX={window.innerWidth < 900 ? 10 : 20} 
+                                initialY={window.innerWidth < 900 ? 190 : 80} 
+                                initialW={window.innerWidth < 900 ? (window.innerWidth - 40) : 740}
+                                initialH={window.innerWidth < 900 ? 480 : 280}
+                                onDrag={() => { }} 
+                                isFixed={true}
+                            >
+                                <div className="master-layout">
+                                    <div className="master-col-left">
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'center' }}>
+                                            <ModuleJack id="MASTER" n="IN" t={true} type="audio" active={isPatched('MASTER', 'IN', true)} patchedColor={getPatchedColor('MASTER', 'IN', true)} domReg={(d) => updatePipRegistry('MASTER', 'IN', d)} onDown={(e) => handleJackDown(e, 'MASTER', 'IN', true)} onUp={() => handleJackUp('MASTER', 'IN', true)} onDoubleClick={() => clearJackCables('MASTER', 'IN', true)} />
+                                            <div className="master-rec-row">
+                                                <div className="master-rec-btn" onPointerDown={(e) => { e.stopPropagation(); toggleRecording(); }}
+                                                    style={{ background: isRecording ? '#FF0033' : '#111', boxShadow: isRecording ? '0 0 15px #FF0033' : 'none' }} />
+                                                <span className="master-rec-label" style={{ color: isRecording ? '#FF0033' : '#666' }}>REC</span>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className="divider" />
-                                    <div className="session-mgnt" style={{ position: 'relative' }}>
-                                        <button 
-                                            onClick={() => {
-                                                const el = document.getElementById('system-menu-dropdown');
-                                                if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
-                                            }} 
-                                            className="top-btn"
-                                        >
-                                            SYSTEM ▼
-                                        </button>
-                                        
-                                        <div id="system-menu-dropdown" className="glass-panel player-dropdown" style={{ display: 'none', position: 'absolute', bottom: '100%', left: '0', marginBottom: '10px', minWidth: '220px', zIndex: 100, padding: '15px' }}>
-                                            <div style={{ marginBottom: '10px', color: '#888', fontSize: '10px', fontWeight: 'bold' }}>NETWORK</div>
-                                            {networkMode === 'OFFLINE' && (
-                                                <div className="player-row" style={{ cursor: 'pointer' }} onClick={async () => {
-                                                    try {
-                                                        await window.OptoNetwork.initHost();
-                                                        setNetworkMode('HOST');
-                                                        const aTrack = cDsp.current.dest.stream.getAudioTracks()[0];
-                                                        let vTrack;
-                                                        if (vRef.current && vRef.current.srcObject) {
-                                                            vTrack = vRef.current.srcObject.getVideoTracks()[0];
-                                                        } else {
-                                                            const canvas = document.createElement('canvas'); canvas.width = 640; canvas.height = 480;
-                                                            vTrack = canvas.captureStream(30).getVideoTracks()[0];
-                                                        }
-                                                        if (vTrack && aTrack) {
-                                                            const combined = new MediaStream([vTrack, aTrack]);
-                                                            window.OptoNetwork.streamMedia(combined);
-                                                        }
-                                                    } catch (e) { console.error('Failed to go online', e); }
-                                                    document.getElementById('system-menu-dropdown').style.display = 'none';
-                                                }}>GO ONLINE (HOST)</div>
-                                            )}
 
-                                            {networkMode === 'HOST' && (
-                                                <div className="player-row" style={{ color: '#00E5FF' }}>
-                                                    ID: {window.OptoNetwork.lobbyId}
+                                    <div className="master-col-mid">
+                                        <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
+                                            <Knob label="OUT GAIN" val={cDsp.current.modules['MASTER'].params.vol} min={-60} max={12.0} step={0.1} def={0.0} onChange={(v) => updateParam('MASTER', 'vol', v)} />
+                                            
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                                <div className="master-profile-box">
+                                                    <div className="tiny-label" style={{ marginBottom: '4px' }}>MASTER_PROFILE</div>
+                                                    <select className="top-select" style={{ width: '100px' }} value={cDsp.current.modules['MASTER'].params.profile || 'NEUTRAL'}
+                                                        onChange={(e) => {
+                                                            updateParam('MASTER', 'profile', e.target.value);
+                                                        }}>
+                                                        {Object.keys(MASTER_PROFILES).map(k => <option key={k} value={k}>{k}</option>)}
+                                                    </select>
                                                 </div>
-                                            )}
 
-                                            {networkMode !== 'OFFLINE' && (
-                                                <div style={{ marginTop: '5px' }}>
-                                                    <div className="player-row" style={{ cursor: 'pointer' }} onClick={() => {
-                                                        const el = document.getElementById('inner-player-dropdown');
-                                                        if(el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
-                                                    }}>
-                                                        PLAYERS: {playersList.length}
+                                                <div className="master-toggles" style={{ padding: 0, border: 'none' }}>
+                                                    <div className="master-toggle-row" onPointerDown={(e) => { e.stopPropagation(); updateParam('MASTER', 'softClip', !cDsp.current.modules['MASTER'].params.softClip); }}>
+                                                        <div className="master-toggle-btn" style={{ background: cDsp.current.modules['MASTER'].params.softClip ? '#B266FF' : '#111', boxShadow: cDsp.current.modules['MASTER'].params.softClip ? '0 0 10px rgba(178, 102, 255, 0.5)' : 'none' }} />
+                                                        <div className="master-toggle-label">SOFT CLIP</div>
                                                     </div>
-                                                    <div id="inner-player-dropdown" style={{ display: 'none', paddingLeft: '10px', marginTop: '5px' }}>
-                                                        {playersList.map((p, i) => (
-                                                            <div key={i} style={{ fontSize: '10px', marginTop: '4px', color: '#ccc' }}>
-                                                                {p} {i === 0 ? '(HOST)' : ''}
-                                                            </div>
-                                                        ))}
+                                                    <div className="master-toggle-row" onPointerDown={(e) => { e.stopPropagation(); updateParam('MASTER', 'limiter', !cDsp.current.modules['MASTER'].params.limiter); }}>
+                                                        <div className="master-toggle-btn" style={{ background: cDsp.current.modules['MASTER'].params.limiter ? '#00E5FF' : '#111', boxShadow: cDsp.current.modules['MASTER'].params.limiter ? '0 0 10px rgba(0, 229, 255, 0.5)' : 'none' }} />
+                                                        <div className="master-toggle-label">LIMITER</div>
+                                                    </div>
+                                                    <div className="master-toggle-row" onPointerDown={(e) => { e.stopPropagation(); updateParam('MASTER', 'mute', !cDsp.current.modules['MASTER'].params.mute); }}>
+                                                        <div className="master-toggle-btn" style={{ background: cDsp.current.modules['MASTER'].params.mute ? '#FF0033' : '#111', boxShadow: cDsp.current.modules['MASTER'].params.mute ? '0 0 10px rgba(255, 0, 51, 0.5)' : 'none' }} />
+                                                        <div className="master-toggle-label">MUTE</div>
                                                     </div>
                                                 </div>
-                                            )}
-
-                                            <div className="divider" style={{ margin: '15px 0' }} />
-                                            <div style={{ marginBottom: '10px', color: '#888', fontSize: '10px', fontWeight: 'bold' }}>PROJECT</div>
-
-                                            {networkMode !== 'GUEST' && (
-                                                <>
-                                                    <div className="player-row" style={{ cursor: 'pointer', marginBottom: '8px' }} onClick={() => { saveProjectToDirectory(); document.getElementById('system-menu-dropdown').style.display = 'none'; }}>SAVE PROJECT</div>
-                                                    <div className="player-row" style={{ cursor: 'pointer', marginBottom: '8px' }} onClick={async () => { if (saveDirectoryHandle) await refreshProjectsFromDirectory(saveDirectoryHandle); setIsProjectsOpen(!isProjectsOpen); document.getElementById('system-menu-dropdown').style.display = 'none'; }}>LOAD PROJECT</div>
-                                                    <div className="player-row" style={{ cursor: 'pointer' }} onClick={() => { chooseSaveDirectory(); document.getElementById('system-menu-dropdown').style.display = 'none'; }}>SET DIRECTORY</div>
-                                                </>
-                                            )}
-                                            {networkMode === 'GUEST' && (
-                                                <div style={{ color: '#666', fontSize: '10px' }}>GUEST MODE (READ ONLY)</div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="master-meter-dock">
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px', height: '100%' }}>
-                                        <ModuleJack id="MASTER" n="IN" t={true} type="audio" active={isPatched('MASTER', 'IN', true)} patchedColor={getPatchedColor('MASTER', 'IN', true)} domReg={(d) => updatePipRegistry('MASTER', 'IN', d)} onDown={(e) => handleJackDown(e, 'MASTER', 'IN', true)} onUp={() => handleJackUp('MASTER', 'IN', true)} onDoubleClick={() => clearJackCables('MASTER', 'IN', true)} />
-                                        
-                                        <div className="master-rec-row" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }}>
-                                            <div className="master-rec-btn" onPointerDown={(e) => { e.stopPropagation(); toggleRecording(); }}
-                                                style={{ background: isRecording ? '#FF0033' : '#111', boxShadow: isRecording ? '0 0 15px #FF0033' : 'none', width: '20px', height: '20px', borderRadius: '50%', cursor: 'pointer', border: '2px solid #333' }} />
-                                            <span className="master-rec-label" style={{ color: isRecording ? '#FF0033' : '#666', fontSize: '10px', fontWeight: 'bold' }}>REC</span>
-                                        </div>
-
-                                        <div className="divider" style={{ width: '1px', height: '40px', background: 'rgba(255,255,255,0.1)' }} />
-                                        
-                                        <Knob label="GAIN" val={cDsp.current.modules['MASTER'].params.vol} min={-60} max={12.0} step={0.1} def={0.0} onChange={(v) => updateParam('MASTER', 'vol', v)} />
-                                        
-                                        <div className="divider" style={{ width: '1px', height: '40px', background: 'rgba(255,255,255,0.1)' }} />
-
-                                        <div className="master-toggles" style={{ padding: 0, border: 'none', display: 'flex', gap: '15px' }}>
-                                            <div className="master-toggle-row" onPointerDown={(e) => { e.stopPropagation(); updateParam('MASTER', 'softClip', !cDsp.current.modules['MASTER'].params.softClip); }} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
-                                                <div className="master-toggle-btn" style={{ background: cDsp.current.modules['MASTER'].params.softClip ? '#B266FF' : '#111', boxShadow: cDsp.current.modules['MASTER'].params.softClip ? '0 0 10px rgba(178, 102, 255, 0.5)' : 'none', width: '14px', height: '14px', borderRadius: '3px', border: '1px solid #444' }} />
-                                                <div className="master-toggle-label" style={{ fontSize: '9px', color: cDsp.current.modules['MASTER'].params.softClip ? '#fff' : '#666' }}>CLIP</div>
-                                            </div>
-                                            <div className="master-toggle-row" onPointerDown={(e) => { e.stopPropagation(); updateParam('MASTER', 'limiter', !cDsp.current.modules['MASTER'].params.limiter); }} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
-                                                <div className="master-toggle-btn" style={{ background: cDsp.current.modules['MASTER'].params.limiter ? '#00E5FF' : '#111', boxShadow: cDsp.current.modules['MASTER'].params.limiter ? '0 0 10px rgba(0, 229, 255, 0.5)' : 'none', width: '14px', height: '14px', borderRadius: '3px', border: '1px solid #444' }} />
-                                                <div className="master-toggle-label" style={{ fontSize: '9px', color: cDsp.current.modules['MASTER'].params.limiter ? '#fff' : '#666' }}>LIMIT</div>
-                                            </div>
-                                            <div className="master-toggle-row" onPointerDown={(e) => { e.stopPropagation(); updateParam('MASTER', 'mute', !cDsp.current.modules['MASTER'].params.mute); }} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
-                                                <div className="master-toggle-btn" style={{ background: cDsp.current.modules['MASTER'].params.mute ? '#FF0033' : '#111', boxShadow: cDsp.current.modules['MASTER'].params.mute ? '0 0 10px rgba(255, 0, 51, 0.5)' : 'none', width: '14px', height: '14px', borderRadius: '3px', border: '1px solid #444' }} />
-                                                <div className="master-toggle-label" style={{ fontSize: '9px', color: cDsp.current.modules['MASTER'].params.mute ? '#fff' : '#666' }}>MUTE</div>
                                             </div>
                                         </div>
+                                    </div>
 
-                                        <div className="divider" style={{ width: '1px', height: '40px', background: 'rgba(255,255,255,0.1)' }} />
-                                        
-                                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                            <SpectrumAnalyzer analyser={cDsp.current.mAnalyser} />
-                                            <MasterLoudnessMonitor analyser={cDsp.current.mAnalyser} />
-                                        </div>
+                                    <div className="master-col-right">
+                                        <SpectrumAnalyzer analyser={cDsp.current.mAnalyser} />
+                                        <MasterLoudnessMonitor analyser={cDsp.current.mAnalyser} />
                                     </div>
                                 </div>
-
-                                <div className="transport-group" style={{ display: 'flex', alignItems: 'center', gap: '15px', padding: '0 20px' }}>
-                                    <div className="console-group" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                        <span className="tiny-label" style={{ color: '#888' }}>BPM</span>
-                                        <input type="range" min={TWEAKS.ranges.bpmMin} max={TWEAKS.ranges.bpmMax} value={bpm} onPointerDown={(e) => e.stopPropagation()} onChange={(e) => setBpm(Number(e.target.value))} className="top-range" style={{ width: '80px' }} />
-                                        <span className="console-val cyan" style={{ width: '30px', fontWeight: 'bold' }}>{bpm}</span>
-                                    </div>
-                                    <div className="divider desktop-only" style={{ height: '20px', width: '1px', background: 'rgba(255,255,255,0.1)' }} />
-                                    <div className="console-group desktop-only" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                        <select value={rootNote} onPointerDown={(e) => e.stopPropagation()} onChange={(e) => setRootNote(e.target.value)} className="top-select" style={{ background: '#111', border: '1px solid #333' }}>
-                                            {NOTES.map(n => <option key={n} value={n}>{n}</option>)}
-                                        </select>
-                                        <select value={scale} onPointerDown={(e) => e.stopPropagation()} onChange={(e) => setScale(e.target.value)} className="top-select" style={{ background: '#111', border: '1px solid #333' }}>
-                                            <option value="MAJOR">😊 MAJOR</option>
-                                            <option value="MINOR">😢 MINOR</option>
-                                            <option value="DORIAN">🌀 DORIAN</option>
-                                            <option value="PHRYGIAN">🔥 PHRYGIAN</option>
-                                            <option value="LYDIAN">✨ LYDIAN</option>
-                                            <option value="MIXOLYDIAN">🎸 MIXOLYDIAN</option>
-                                            <option value="LOCRIAN">🌑 LOCRIAN</option>
-                                            <option value="PENTATONIC">⛩️ PENTATONIC</option>
-                                            <option value="BLUES">🎷 BLUES</option>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <div className="system-readout desktop-only" style={{ display: 'flex', alignItems: 'center', padding: '0 20px', borderLeft: '1px solid rgba(255,255,255,0.1)' }}>
-                                    <window.PerformanceMeter />
-                                    <window.CPUGraph />
-                                </div>
-                            </div>
+                            </window.DraggableWindow>
                         )}
                     </div>
 
@@ -2160,7 +2175,7 @@ function App() {
                                                 </div>
                                             </div>
                                             <div className="fx-group">
-                                                <Knob label="RATE" val={mod.params.spinRate} min={0.1} max={5.0} step={0.01} def={0.4} onChange={(v) => { updateParam(fx.id, 'spinRate', v); }} />
+                                                <Knob label="RATE" val={mod.params.spinRate} min={0.1} max={5.0} step={0.01} def={0.4} onChange={(v) => { updateParam(fx.id, 'spinRate', v); mod.nodes.spinLfo.frequency.value = v; }} />
                                                 <Knob label="DEPTH" val={mod.params.spin} min={0} max={1} step={0.01} def={0.32} onChange={(v) => updateParam(fx.id, 'spin', v)} />
                                             </div>
                                         </div>
