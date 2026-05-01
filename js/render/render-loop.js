@@ -395,7 +395,7 @@ window.OptoRackRenderLoop = class {
                 }
             });
 
-            const targetLen = Math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2) / (segments - 1) * 1.1;
+            const targetLen = Math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2) / (segments - 1) * 1.15; // Increased slack
             for (let r = 0; r < 5; r++) {
                 for (let i = 0; i < segments - 1; i++) {
                     const a = c._physics[i];
@@ -425,27 +425,38 @@ window.OptoRackRenderLoop = class {
             }
             ctx.lineTo(c._physics[segments - 1].x, c._physics[segments - 1].y);
 
-            // Premium Glow & Connector Style
+            // Realistic 3D Cable Rendering
+            // 1. Ambient Drop Shadow
             ctx.shadowBlur = 15 * cam.z;
-            ctx.shadowColor = 'rgba(0,0,0,0.5)';
-            ctx.strokeStyle = 'rgba(0,0,0,0.4)';
-            ctx.lineWidth = 7 * cam.z;
+            ctx.shadowColor = 'rgba(0,0,0,0.8)';
+            ctx.strokeStyle = 'rgba(0,0,0,0)'; 
+            ctx.lineWidth = 12 * cam.z;
             ctx.lineCap = 'round';
             ctx.stroke();
 
-            // The Core Wire
-            ctx.shadowBlur = 10 * cam.z;
-            ctx.shadowColor = c.color;
-            ctx.strokeStyle = c.color;
-            ctx.lineWidth = 4 * cam.z;
+            // Reset shadow
+            ctx.shadowBlur = 0;
+
+            // 2. Thick Dark Base (Rubber Rim)
+            ctx.strokeStyle = '#1a1a1a';
+            ctx.lineWidth = 8 * cam.z;
             ctx.stroke();
 
-            // Inner Highlight / Pulse
-            ctx.shadowBlur = 0;
-            ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-            ctx.lineWidth = 1.2 * cam.z;
-            ctx.setLineDash([15, 25]);
-            ctx.lineDashOffset = -(performance.now() / 40) % 40;
+            // 3. Colored Core
+            ctx.strokeStyle = c.color;
+            ctx.lineWidth = 5 * cam.z;
+            ctx.stroke();
+
+            // 4. Glossy Specular Highlight (Simulates 3D tube reflection)
+            ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+            ctx.lineWidth = 2 * cam.z;
+            ctx.stroke();
+
+            // 5. Signal Flow Indicator (Dashed)
+            ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+            ctx.lineWidth = 1 * cam.z;
+            ctx.setLineDash([8, 24]);
+            ctx.lineDashOffset = -(performance.now() / 30) % 32;
             ctx.stroke();
             ctx.setLineDash([]);
 
