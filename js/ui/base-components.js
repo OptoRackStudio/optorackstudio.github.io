@@ -177,7 +177,7 @@ const ModuleJack = ({id, n, t=false, type="cv", active=false, patchedColor, domR
                 style={{ perspective: '500px' }}
                 tabIndex={0}
                 role="button"
-                aria-label={`${n} jack ${isInput ? 'input' : 'output'}`}>
+                aria-label={`${n} jack`}>
                <div className="jack-housing" style={{ transform: `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)` }}>
                    <div className="jack-rim" />
                    <div className="jack-hole" ref={(el) => { 
