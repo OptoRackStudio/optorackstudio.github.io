@@ -216,9 +216,14 @@ window.OptoRackRenderLoop = class {
             }
         } else if (mod.type === 'PROB_SEQ') {
             const stepDuration = beatInterval / mod.params.rate;
-            if (!mod.state.lastTime) mod.state.lastTime = ctActx - stepDuration;
+            if (!mod.state.lastTime) mod.state.lastTime = ctActx;
+
+            // Prevent massive catch-up glitches if the system lags or BPM changes drastically
+            if (ctActx - mod.state.lastTime > 1.0) {
+                mod.state.lastTime = ctActx - stepDuration;
+            }
             
-            while (mod.state.lastTime + stepDuration <= ctActx + 0.05) {
+            while (mod.state.lastTime + stepDuration <= ctActx + 0.1) { // 100ms look-ahead for network stability
                 const schedTime = mod.state.lastTime + stepDuration;
                 mod.state.lastTime = schedTime;
                 mod.state.step = (mod.state.step + 1) % 16;
@@ -240,7 +245,13 @@ window.OptoRackRenderLoop = class {
                     cables.forEach(c => {
                         if (c.srcMod === mod.id && (c.srcPort === 'TRIG' || c.srcPort === 'OUT')) {
                             const destMod = this.config.cDsp.current.modules[c.destMod];
-                            if (destMod) destMod.triggerTime = schedTime;
+                            if (destMod) {
+                                if (!destMod.triggerQueue) destMod.triggerQueue = [];
+                                // Only queue if within a reasonable look-ahead window
+                                if (schedTime < ctActx + 0.5) {
+                                    destMod.triggerQueue.push({ time: schedTime, duration: stepDuration * mod.params.gate });
+                                }
+                            }
                         }
                     });
 
@@ -275,31 +286,40 @@ window.OptoRackRenderLoop = class {
         let internalRate = dspObj.params.trigRate || 1;
         const trigInterval = beatInterval / internalRate;
 
+        const triggerTasks = [];
+        
         if (!isExtTrig) {
             if (!dspObj.curTrigT || dspObj.curTrigT < ctActx - 1) dspObj.curTrigT = ctActx;
-            if (ctActx >= dspObj.curTrigT) {
-                shouldTrigger = true;
-                schedTime = dspObj.curTrigT;
+            while (ctActx >= dspObj.curTrigT - 0.05) {
+                triggerTasks.push({ time: Math.max(ctActx, dspObj.curTrigT), duration: trigInterval * 0.85 });
                 dspObj.curTrigT += trigInterval;
-                if (dspObj.curTrigT < ctActx) dspObj.curTrigT = ctActx + trigInterval;
             }
-        } else if (dspObj.triggerTime > 0 && ctActx >= dspObj.triggerTime - 0.05) {
-            shouldTrigger = true;
-            schedTime = dspObj.triggerTime;
-            dspObj.triggerTime = 0;
-        } else if (dspObj.triggerFlag) {
-            shouldTrigger = true;
-            schedTime = ctActx;
-            dspObj.triggerFlag = false;
+        } else {
+            if (dspObj.triggerQueue && dspObj.triggerQueue.length > 0) {
+                while (dspObj.triggerQueue.length > 0) {
+                    const nextTrig = dspObj.triggerQueue[0];
+                    if (ctActx >= nextTrig.time - 0.05) {
+                        triggerTasks.push(dspObj.triggerQueue.shift());
+                    } else {
+                        break;
+                    }
+                }
+            }
+            if (dspObj.triggerFlag) {
+                triggerTasks.push({ time: ctActx, duration: beatInterval / 4 });
+                dspObj.triggerFlag = false;
+            }
         }
 
         if (!dspObj.state) dspObj.state = { lastTrig: 0, gate: 0, smoothWtPos: dspObj.scanPhase || 0 };
         const state = dspObj.state;
 
-        if ((shouldTrigger || dspObj.params.isLive || state.gate > 0) && dspObj.currentTopo) {
-            if (shouldTrigger) {
+        const anyTrigger = triggerTasks.length > 0;
+        if ((anyTrigger || dspObj.params.isLive || state.gate > 0) && dspObj.currentTopo) {
+            triggerTasks.forEach(task => {
                 const { atk, dec, sus, rel, hold = 0 } = dspObj.params;
-                const gateLength = (beatInterval / (isExtTrig ? 4 : internalRate)) * 0.85;
+                const schedTime = task.time;
+                const gateLength = task.duration || (beatInterval / 4);
                 const paramsToUpdate = [];
                 if (dspObj.env?.gain) paramsToUpdate.push(dspObj.env.gain);
                 if (dspObj.outNodes?.ENV?.offset) paramsToUpdate.push(dspObj.outNodes.ENV.offset);
@@ -322,8 +342,12 @@ window.OptoRackRenderLoop = class {
                 });
                 state.lastTrig = performance.now();
                 state.gate = 1.0;
-                // Auto-clear gate after full ADSR duration for visual/DSP gating
-                setTimeout(() => { state.gate = 0; }, (atk + hold + dec + rel + 0.1) * 1000);
+                dspObj.envEndTime = schedTime + atk + hold + dec + rel;
+            });
+
+            // Check if envelope is still active (for visuals and DSP gating)
+            if (dspObj.envEndTime && ctActx > dspObj.envEndTime) {
+                state.gate = 0;
             }
 
             const maxH = 64;
@@ -364,9 +388,9 @@ window.OptoRackRenderLoop = class {
                 real[i] = amp * Math.cos(phase); imag[i] = amp * Math.sin(phase);
             }
 
-            // Throttle Wavetable Update to ~30fps to prevent main-thread congestion
+            // Throttle Wavetable Update to ~30fps, BUT force update on trigger to prevent attack-phase glitches
             const now = performance.now();
-            if (!dspObj._lastWaveTime || now - dspObj._lastWaveTime > 32) {
+            if (anyTrigger || !dspObj._lastWaveTime || now - dspObj._lastWaveTime > 32) {
                 try {
                     const wave = this.config.cDsp.current.actx.createPeriodicWave(real, imag, { disableNormalization: false });
                     dspObj.unisonOscs?.forEach(osc => osc.setPeriodicWave(wave));
@@ -600,16 +624,26 @@ window.OptoRackRenderLoop = class {
                 closestJack.classList.add('jack-highlight');
                 // Subtle snap visual - draw a glow circle around the target jack
                 const rect = closestJack.getBoundingClientRect();
-                const jx = (rect.left + rect.width / 2) / (window.studioScale || 1);
-                const jy = (rect.top + rect.height / 2) / (window.studioScale || 1);
+                const sc = window.studioScale || 1;
+                const jx = (rect.left + rect.width / 2) / sc;
+                const jy = (rect.top + rect.height / 2) / sc;
                 
                 ctx.beginPath();
                 ctx.arc(jx, jy, 15 * cam.z, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(0, 229, 255, 0.3)';
+                ctx.fillStyle = 'rgba(0, 229, 255, 0.4)';
                 ctx.fill();
                 ctx.strokeStyle = '#00E5FF';
-                ctx.lineWidth = 2 * cam.z;
+                ctx.lineWidth = 3 * cam.z;
                 ctx.stroke();
+
+                // Dynamic connection line preview
+                ctx.beginPath();
+                ctx.setLineDash([5, 5]);
+                ctx.moveTo(p2.x, p2.y);
+                ctx.lineTo(jx, jy);
+                ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+                ctx.stroke();
+                ctx.setLineDash([]);
             }
         } else if (window.OptoRackJacks) {
             // Ensure highlights are cleared when not dragging

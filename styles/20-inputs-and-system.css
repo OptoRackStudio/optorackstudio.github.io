@@ -38,16 +38,17 @@
 }
 
 .synth-panel-header {
-	font-size: 10px;
-	color: #ccc;
-	font-weight: bold;
-	letter-spacing: 1px;
+	font-size: 11px;
+	color: #fff;
+	font-weight: 900;
+	letter-spacing: 1.5px;
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
-	border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-	padding-bottom: 6px;
-	text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+	border-bottom: 1px solid rgba(0, 229, 255, 0.2);
+	padding-bottom: 8px;
+	text-shadow: 0 0 10px rgba(0, 229, 255, 0.3), 0 2px 4px rgba(0, 0, 0, 1.0);
+	text-transform: uppercase;
 }
 
 .synth-panel-content {
@@ -145,14 +146,14 @@ select option {
 
 /* Performance Meter */
 .perf-meter {
-	background: rgba(0, 0, 0, 0.5);
-	padding: 4px 8px;
+	background: rgba(0, 0, 0, 0.6);
+	padding: 6px 12px;
 	border-radius: 4px;
-	border: 1px solid #333;
-	font-size: 10px;
-	color: #ccc;
-	font-weight: bold;
-	text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+	border: 1px solid rgba(0, 229, 255, 0.2);
+	font-size: 11px;
+	color: #fff;
+	font-weight: 900;
+	text-shadow: 0 0 8px rgba(0, 229, 255, 0.4), 0 1px 3px rgba(0, 0, 0, 1.0);
 }
 
 
@@ -166,10 +167,11 @@ select option {
     display: flex;
     justify-content: space-between;
     margin-bottom: 6px;
-    font-size: 10px;
-    font-weight: bold;
-    color: #ccc;
-    letter-spacing: 1px;
+    font-size: 11px;
+    font-weight: 900;
+    color: #eee;
+    letter-spacing: 1.2px;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 1.0);
 }
 .slider-value {
     color: var(--accent-cyan);
@@ -295,10 +297,12 @@ select option {
 }
 
 .browser-item-desc {
-	color: #bbb;
-	font-size: 11px;
+	color: #CCC;
+	font-size: 12px;
 	margin-top: 8px;
-    line-height: 1.4;
+    line-height: 1.5;
+	font-weight: 500;
+	text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
 }
 
 /* Synth Dropdown */

@@ -91,9 +91,10 @@ function App() {
     }, []);
     const [isRecording, setIsRecording] = useState(false);
     const [assignMode, setAssignMode] = useState(null);
-    const [wtPresets, setWtPresets] = useState([
+    const [wtPresets, setWtPresets] = useState(window.PHOTOSYNTH_PRESETS || [
         {
             name: "INIT - 4742 CORE",
+            category: "INIT",
             topo: new Float32Array(2048),
             params: {
                 atk: 0.005, hold: 0.0, dec: 0.5, sus: 0.2, rel: 0.8,
@@ -104,77 +105,9 @@ function App() {
                 subOn: true, subLvl: 0.4, noiseOn: false, pEnv: 0,
                 timeScl: 1.0, freqScl: 1.0, ampScl: 1.0, isLive: true
             }
-        },
-        {
-            name: "KICK - PRO EDM",
-            topo: new Float32Array(2048).fill(0).map((_, i) => Math.exp(-i * 0.02) + (i < 50 ? Math.random() * 0.2 : 0)),
-            params: {
-                atk: 0.002, dec: 0.15, sus: 0.0, rel: 0.15,
-                cut: 120, res: 4.5, drive: 22, filterType: 'lowpass',
-                unison: 1, pEnv: 85, ampScl: 2.0, fmAmt: 0.2,
-                subOn: true, subLvl: 1.0, subFilter: false,
-                oscOn: true, noiseOn: true, noiseLvl: 0.1, noiseColor: 4000,
-                isLive: false
-            }
-        },
-        {
-            name: "HI-HAT - METALLIC",
-            topo: new Float32Array(2048).fill(0).map((_, i) => Math.random()),
-            params: {
-                atk: 0.001, dec: 0.05, sus: 0.0, rel: 0.04,
-                cut: 15000, res: 0.1, drive: 0, filterType: 'highpass',
-                pitch: 60, unison: 1,
-                noiseOn: true, noiseLvl: 0.7, noiseFilter: true,
-                oscOn: true, subOn: false,
-                formant: 4.5, crush: 0.6, isLive: false,
-                ampScl: 0.5
-            }
-        },
-        {
-            name: "SNARE - CLINICAL",
-            topo: new Float32Array(2048).fill(0).map((_, i) => Math.random() * Math.exp(-i * 0.05)),
-            params: {
-                atk: 0.001, dec: 0.08, sus: 0.0, rel: 0.08,
-                cut: 4000, res: 0.5, drive: 8, filterType: 'bandpass',
-                unison: 3, detune: 0.1, noiseOn: true, noiseLvl: 0.5,
-                ampScl: 1.2, isLive: false
-            }
-        },
-        {
-            name: "BASS - REESE GROWL",
-            topo: new Float32Array(2048).fill(0).map((_, i) => (i % 32 < 16 ? 1 : 0)),
-            params: {
-                atk: 0.01, dec: 0.4, sus: 0.6, rel: 0.3,
-                cut: 600, res: 2.0, drive: 12, filterType: 'lowpass',
-                unison: 9, detune: 0.12, unisonSpread: 1.0,
-                subOn: true, subLvl: 0.8, subFilter: true,
-                fmAmt: 0.25, isLive: false
-            }
-        },
-        {
-            name: "PAD - NEON WAVES",
-            topo: new Float32Array(2048).fill(0).map((_, i) => Math.sin(i * 0.1) * 0.5 + 0.5),
-            params: {
-                atk: 1.2, dec: 2.0, sus: 0.7, rel: 3.5,
-                cut: 1200, res: 1.2, drive: 1.5, filterType: 'lowpass',
-                unison: 9, detune: 0.12, blend: 0.6, warp: 0.3, bend: 0.1, sym: 0.4,
-                sync: 1.2, formant: 1.0, lfoDepth: 40, lfoRate: 0.15,
-                isLive: false
-            }
-        },
-        {
-            name: "BASS - 303 ACID",
-            topo: new Float32Array(2048).fill(0).map((_, i) => (i % 64 < 32 ? 1 : 0)),
-            params: {
-                atk: 0.01, dec: 0.35, sus: 0.15, rel: 0.15,
-                cut: 350, res: 22.0, drive: 25, filterType: 'lowpass',
-                unison: 1, fmAmt: 0.05, pEnv: 0,
-                lfoRate: 1.8, lfoDepth: 95, lfoWave: 0,
-                subOn: true, subLvl: 0.3,
-                isLive: false
-            }
         }
     ]);
+    const [wtLibraryCategory, setWtLibraryCategory] = useState('ALL');
     const [tipIndex, setTipIndex] = useState(0);
 
     const [playersList, setPlayersList] = useState([]);
@@ -375,12 +308,9 @@ function App() {
             loadProject(msg.data);
             setVisualTemplate(msg.visualTemplate);
         } else if (msg.type === 'PARAM_UPDATE') {
-            const mod = cDsp.current.modules[msg.modId];
-            if (mod) {
-                mod.baseParams[msg.param] = msg.value;
-                if (mod.params[msg.param] !== undefined) mod.params[msg.param] = msg.value;
-                setRenderTrigger(p => p + 1);
-            }
+            updateParam(msg.modId, msg.param, msg.value, false, true);
+        } else if (msg.type === 'MASTER_PARAM_UPDATE') {
+            updateParam('MASTER', msg.param, msg.value, false, true);
         } else if (msg.type === 'VISUAL_TEMPLATE') {
             setVisualTemplate(msg.template);
         } else if (msg.type === 'CURSOR') {
@@ -398,12 +328,7 @@ function App() {
             const ctrl = window.moduleControllers[msg.id];
             if (ctrl) ctrl.moveBy(0, 0); // Trigger visual update in the controller
         } else if (msg.type === 'MASTER_PARAM_UPDATE') {
-            const mod = cDsp.current.modules['MASTER'];
-            if (mod) {
-                mod.baseParams[msg.param] = msg.value;
-                if (mod.params[msg.param] !== undefined) mod.params[msg.param] = msg.value;
-                setRenderTrigger(p => p + 1);
-            }
+            updateParam('MASTER', msg.param, msg.value, false, true);
         } else if (msg.type === 'SCAN_X_SYNC') {
             sharedStateRef.current.scanX = msg.value;
             // Update all synths scanPhase for the visualizer
@@ -1134,7 +1059,20 @@ function App() {
     const clearJackCables = (modId, portId, isInput) => {
         const cablesToRemove = cablesRef.current.filter(c => isInput ? (c.destMod === modId && c.destPort === portId) : (c.srcMod === modId && c.srcPort === portId));
         cablesToRemove.forEach(c => {
-            if (c.cableGain) { c.cableGain.gain.setTargetAtTime(0, cDsp.current.actx.currentTime, 0.05); setTimeout(() => { try { c.cableGain.disconnect(); } catch (e) { } }, 100); }
+            if (c.cableGain) { 
+                c.cableGain.gain.setTargetAtTime(0, cDsp.current.actx.currentTime, 0.05); 
+                setTimeout(() => { try { c.cableGain.disconnect(); } catch (e) { } }, 100); 
+            }
+            // Add visual drop effect
+            const sc = window.studioScale || 1;
+            droppedCablesRef.current.push({ 
+                modId: isInput ? c.srcMod : c.destMod, 
+                portId: isInput ? c.srcPort : c.destPort, 
+                isInput: !isInput, 
+                dropTime: performance.now(), 
+                dropX: disruptCursor.current.x, 
+                dropY: disruptCursor.current.y 
+            });
         });
         if (cablesToRemove.length > 0) {
             cablesRef.current = cablesRef.current.filter(c => !cablesToRemove.includes(c));
@@ -1265,7 +1203,7 @@ function App() {
         }
     };
 
-    const updateParam = (modId, param, val, isMacro = false) => {
+    const updateParam = (modId, param, val, isMacro = false, fromNetwork = false) => {
         // Anti-Troll: Check permissions if guest
         if (networkMode === 'GUEST' && !permissions.canTweak) {
             return;
@@ -1274,8 +1212,12 @@ function App() {
         if (mod) {
             if (!isMacro) {
                 mod.baseParams[param] = val;
-                if (networkMode !== 'OFFLINE' && networkMode !== 'MENU') {
-                    window.OptoNetwork.send({ type: 'PARAM_UPDATE', modId, param, value: val });
+                if (!fromNetwork && networkMode !== 'OFFLINE' && networkMode !== 'MENU') {
+                    if (modId === 'MASTER') {
+                        window.OptoNetwork.send({ type: 'MASTER_PARAM_UPDATE', param, value: val });
+                    } else {
+                        window.OptoNetwork.send({ type: 'PARAM_UPDATE', modId, param, value: val });
+                    }
                 }
 
                 // Optimization: Only update expensive WaveShaper curves on manual tweaks, not LFO modulation
@@ -1406,20 +1348,23 @@ function App() {
         const updated = [...wtPresets, newPreset]; setWtPresets(updated);
     };
 
-    const loadWtPreset = (modId, presetIdx) => {
-        const mod = cDsp.current.modules[modId]; const preset = wtPresets[presetIdx];
+    const loadWtPreset = (modId, preset) => {
+        const mod = cDsp.current.modules[modId];
         if (mod && preset) {
             // First, reset to a clean state to prevent crosstalk from previous presets
-            const defaults = window.OptoRackAudio.getSynthDefaultParams();
-            Object.entries(defaults).forEach(([k, v]) => updateParam(modId, k, v));
+            const defaults = window.OptoRackAudio?.getSynthDefaultParams ? window.OptoRackAudio.getSynthDefaultParams() : {};
+            Object.entries(defaults).forEach(([k, v]) => {
+                if (mod.params[k] !== undefined) updateParam(modId, k, v);
+            });
 
-            mod.snapshotTopo = new Float32Array(preset.topo);
+            if (preset.topo) mod.snapshotTopo = new Float32Array(preset.topo);
             if (preset.params) {
                 Object.entries(preset.params).forEach(([k, v]) => {
-                    updateParam(modId, k, v);
+                    if (mod.params[k] !== undefined) updateParam(modId, k, v);
                 });
             }
-            updateParam(modId, 'isLive', false); updateParam(modId, 'wtScan', false);
+            updateParam(modId, 'isLive', false); 
+            updateParam(modId, 'wtScan', false);
             updateParam(modId, 'showPresets', false); // Auto-back after load
         }
     };
@@ -2430,7 +2375,7 @@ function App() {
                                                             <div className="synth-panel-header">
                                                                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                                                                     <span>WAVETABLE OSCILLATOR</span>
-                                                                    <span style={{ fontSize: '8px', color: '#00E5FF', fontWeight: 'normal', letterSpacing: '0.5px', marginTop: '2px', opacity: 0.8 }}>
+                                                                    <span style={{ fontSize: '11px', color: '#00E5FF', fontWeight: '900', letterSpacing: '1px', marginTop: '4px', textShadow: '0 0 10px rgba(0, 229, 255, 0.4)' }}>
                                                                         X: TIME • Y: PITCH • LUMA: AMP (CLICK TO SCRUB)
                                                                     </span>
                                                                 </div>
@@ -2455,17 +2400,32 @@ function App() {
                                                                     {mod.params.showPresets ? (
                                                                         <div onWheel={(e) => e.stopPropagation()} className="wt-library-panel">
                                                                             <div className="wt-library-header">
-                                                                                <div className="wt-library-title">OSC SNAPSHOT LIBRARY</div>
+                                                                                <div className="wt-library-title">PHOTOSYNTH WAVE LIBRARY</div>
                                                                                 <div className="wt-library-close" onPointerDown={(e) => { e.stopPropagation(); updateParam(ac.id, 'showPresets', false); }}>✕ CLOSE</div>
                                                                             </div>
+                                                                            
+                                                                            <div className="wt-library-categories">
+                                                                                {['ALL', 'DRUMS', 'SYNTHS', 'PADS', 'BASSLINES', 'PLUCKS', 'FX', 'INIT'].map(cat => (
+                                                                                    <div key={cat} 
+                                                                                        className={`wt-cat-btn ${wtLibraryCategory === cat ? 'active' : ''}`}
+                                                                                        onPointerDown={(e) => { e.stopPropagation(); setWtLibraryCategory(cat); }}
+                                                                                    >
+                                                                                        {cat}
+                                                                                    </div>
+                                                                                ))}
+                                                                            </div>
+
                                                                             <div className="wt-library-grid">
-                                                                                {wtPresets.map((p, idx) => (
+                                                                                {wtPresets.filter(p => wtLibraryCategory === 'ALL' || p.category === wtLibraryCategory).map((p, idx) => (
                                                                                     <div key={idx}
                                                                                         className="wt-preset-card"
-                                                                                        onPointerDown={(e) => { e.stopPropagation(); loadWtPreset(ac.id, idx); }}
+                                                                                        onPointerDown={(e) => { e.stopPropagation(); loadWtPreset(ac.id, p); }}
                                                                                     >
                                                                                         <div className="wt-preset-name">{p.name}</div>
-                                                                                        <div className="wt-preset-tag">{p.params ? '◈ FULL STATE' : '◇ TOPOLOGY'}</div>
+                                                                                        <div className="wt-preset-meta">
+                                                                                            <span className="wt-preset-category">{p.category}</span>
+                                                                                            <span className="wt-preset-type">{p.params ? '◈ STATE' : '◇ WAVE'}</span>
+                                                                                        </div>
                                                                                     </div>
                                                                                 ))}
                                                                             </div>
